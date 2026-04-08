@@ -27,6 +27,10 @@ A real-time, premium glassmorphism dashboard providing an instant live overview 
 
 ![Animated System Telemetry Dashboard](assets/Dashboard.gif)
 
+### 📊 Security Intelligence & Reporting
+Deep analytical insights showing attack vectors, top offenders, and automated email reporting configuration.
+![Security Intelligence](assets/security%20intel.png)
+
 ### 🛡️ Authentication & MFA
 Secure login panel with mandatory MFA and logo branding.
 ![Login Screen](assets/login.png)
