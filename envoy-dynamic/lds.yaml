@@ -1,6 +1,6 @@
 resources:
 - '@type': type.googleapis.com/envoy.config.listener.v3.Listener
-  name: listener_home
+  name: listener_TEST01
   address:
     socket_address:
       address: 0.0.0.0
@@ -10,18 +10,18 @@ resources:
     - name: envoy.filters.network.http_connection_manager
       typed_config:
         '@type': type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
-        stat_prefix: listener_home
+        stat_prefix: listener_TEST01
         route_config:
           name: local_route
           virtual_hosts:
-          - name: home
+          - name: TEST01
             domains:
             - '*'
             routes:
             - match:
                 prefix: /
               route:
-                cluster: home
+                cluster: TEST01
             rate_limits:
             - actions:
               - remote_address: {}
@@ -65,7 +65,7 @@ resources:
                 bytes_received: '%BYTES_RECEIVED%'
                 client_ip: '%DOWNSTREAM_REMOTE_ADDRESS_WITHOUT_PORT%'
                 user_agent: '%REQ(USER-AGENT)%'
-                server: home
+                server: TEST01
                 req_body: '%DYNAMIC_METADATA(envoy.filters.http.lua:req_body)%'
                 resp_body: '%DYNAMIC_METADATA(envoy.filters.http.lua:resp_body)%'
         http_filters:
@@ -2904,7 +2904,7 @@ resources:
                   "default_directives": "default"}'
               vm_config:
                 runtime: envoy.wasm.runtime.v8
-                vm_id: coraza-vm-home
+                vm_id: coraza-vm-TEST01
                 code:
                   local:
                     filename: /etc/envoy/coraza-proxy-wasm.wasm

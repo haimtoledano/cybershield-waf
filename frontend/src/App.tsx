@@ -439,21 +439,33 @@ const App: React.FC = () => {
                {logs.length === 0 && <div className="text-slate-500 italic p-4 text-center">No logs available at this time.</div>}
                {logs.map((log, idx) => {
                   const logId = `${log.time}-${idx}`;
-                  const isBlocked = log.status == 403 || log.status == 406;
+                  const isBlocked = [403, 406].includes(parseInt(log.status));
+                  const isRateLimited = parseInt(log.status) === 429;
+                  const rowTheme = isRateLimited 
+                     ? 'bg-orange-900/20 hover:bg-orange-900/40 text-orange-400' 
+                     : isBlocked 
+                        ? 'bg-red-900/20 hover:bg-red-900/40 text-red-300' 
+                        : 'hover:bg-slate-800 text-green-400';
+
                   return (
                    <React.Fragment key={logId}>
                      <div onClick={() => setExpandedLogId(expandedLogId === logId ? null : logId)} 
-                          className={`flex items-center px-2 py-1.5 rounded cursor-pointer transition ${isBlocked ? 'bg-red-900/20 hover:bg-red-900/40 text-red-300' : 'hover:bg-slate-800 text-green-400'} border border-transparent hover:border-slate-700`}>
+                          className={`flex items-center px-2 py-1.5 rounded cursor-pointer transition ${rowTheme} border border-transparent hover:border-slate-700`}>
                         <div className="w-24 text-slate-500">{new Date(log.time).toLocaleTimeString()}</div>
                         <div className="w-32 font-mono text-slate-300">{log.client_ip || "-"}</div>
                         <div className="w-24 font-bold">{log.method}</div>
                         <div className="w-40 text-blue-400">{log.server}</div>
                         <div className="flex-1 truncate pr-4 text-slate-300">{log.path}</div>
                         <div className="w-32 flex items-center space-x-2">
-                           <span className={isBlocked ? "font-bold" : "text-slate-400"}>{log.status}</span>
-                           {isBlocked && (
-                               <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${(log.block_reason && log.block_reason.includes('wasm')) || isBlocked ? 'bg-red-600 text-white' : 'bg-orange-500 text-white'}`}>
-                                   {(log.block_reason && log.block_reason.includes('wasm')) || isBlocked ? 'WAF' : 'APP'}
+                           <span className={(isBlocked || isRateLimited) ? "font-bold" : "text-slate-400"}>{log.status}</span>
+                           {isRateLimited && (
+                               <span className="text-[9px] px-1.5 py-0.5 rounded font-bold bg-orange-600 text-white">
+                                   RATE LIMIT
+                               </span>
+                           )}
+                           {isBlocked && !isRateLimited && (
+                               <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${(log.block_reason && log.block_reason.includes('wasm')) ? 'bg-red-600 text-white' : 'bg-red-500 text-white'}`}>
+                                   WAF
                                </span>
                            )}
                            {expandedLogId === logId ? <ChevronUp className="w-4 h-4 text-slate-600"/> : <ChevronDown className="w-4 h-4 text-slate-600"/>}
@@ -574,7 +586,16 @@ const App: React.FC = () => {
                 <h2 className="text-3xl font-semibold mb-2 text-white flex items-center">
                   <Shield className="w-8 h-8 mr-3 text-indigo-400"/> Threat Engine Tuning
                 </h2>
-                <p className="text-slate-400 mb-6 font-medium">Fine-tune the security posture and technology profile for <span className="font-bold text-white bg-slate-800 px-2 py-1 rounded">{activeServer.name}</span></p>
+                <div className="flex items-center space-x-2 text-slate-400 mb-6 font-medium">
+                   <span>Fine-tune the security posture and technology profile for</span>
+                   <input 
+                       type="text" 
+                       value={activeServer.name} 
+                       onChange={(e) => updateServerSettings(activeServer, { name: e.target.value })} 
+                       className="font-bold text-white bg-slate-800 px-2 py-1 rounded border border-transparent hover:border-slate-600 focus:border-indigo-500 focus:bg-slate-900 outline-none transition w-48"
+                       title="Edit Virtual Server Name"
+                   />
+                </div>
                 
                  <div className="flex space-x-2 border-b border-slate-700 mb-6 font-mono text-sm">
                    <button onClick={() => setActiveSettingsTab('rules')} className={`px-4 py-2 transition ${activeSettingsTab === 'rules' ? 'text-indigo-400 border-b-2 border-indigo-400' : 'text-slate-400 hover:text-white'}`}>

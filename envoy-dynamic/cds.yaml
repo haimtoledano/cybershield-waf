@@ -1,10 +1,10 @@
 resources:
 - '@type': type.googleapis.com/envoy.config.cluster.v3.Cluster
-  name: home
+  name: TEST01
   connect_timeout: 0.25s
   type: STRICT_DNS
   load_assignment:
-    cluster_name: home
+    cluster_name: TEST01
     endpoints:
     - lb_endpoints:
       - endpoint:

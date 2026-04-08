@@ -184,31 +184,6 @@ def generate_lds(servers, blacklisted_ips=None, whitelisted_ips=None):
                 }
             })
 
-        if getattr(server, "rate_limit_enabled", False):
-            http_filters.append({
-                "name": "envoy.filters.http.local_ratelimit",
-                "typed_config": {
-                    "@type": "type.googleapis.com/envoy.extensions.filters.http.local_ratelimit.v3.LocalRateLimit",
-                    "stat_prefix": "http_local_rate_limiter",
-                    "token_bucket": {
-                        "max_tokens": server.rate_limit_rpm,
-                        "tokens_per_fill": server.rate_limit_rpm,
-                        "fill_interval": "60s"
-                    },
-                    "filter_enabled": {"runtime_key": "local_rate_limit_enabled", "default_value": {"numerator": 100, "denominator": "HUNDRED"}},
-                    "filter_enforced": {"runtime_key": "local_rate_limit_enforced", "default_value": {"numerator": 100, "denominator": "HUNDRED"}},
-                    "response_headers_to_add": [{"append_action": "OVERWRITE_IF_EXISTS_OR_ADD", "header": {"key": "x-local-rate-limit", "value": "true"}}],
-                    "descriptors": [{
-                        "entries": [{"key": "remote_address"}],
-                        "token_bucket": {
-                            "max_tokens": server.rate_limit_rpm,
-                            "tokens_per_fill": server.rate_limit_rpm,
-                            "fill_interval": "60s"
-                        }
-                    }]
-                }
-            })
-
         http_filters.append({
             "name": "envoy.filters.http.buffer",
             "typed_config": {
@@ -251,7 +226,7 @@ def generate_lds(servers, blacklisted_ips=None, whitelisted_ips=None):
                 "typed_config": {
                     "@type": "type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua",
                     "default_source_code": {
-                        "inline_string": generate_waf_lua()
+                        "inline_string": generate_waf_lua(server)
                     }
                 }
             },
@@ -369,9 +344,29 @@ def generate_coraza_config(server, whitelisted_ips=None):
     }
     return json.dumps(config)
 
-def generate_waf_lua():
-    lua_script = "-- Payload Logger Module\n"
+def generate_waf_lua(server):
+    lua_script = "-- Payload Logger & Rate Limiter Module\n"
     lua_script += "function envoy_on_request(request_handle)\n"
+    
+    if getattr(server, "rate_limit_enabled", False):
+        lua_script += f"  local rpm_limit = {server.rate_limit_rpm}\n"
+        lua_script += "  local ip_full = request_handle:streamInfo():downstreamDirectRemoteAddress()\n"
+        lua_script += "  local ip = string.match(ip_full, '^([^:]+)') or ip_full\n"
+        lua_script += "  if not _G.rl_counter then _G.rl_counter = {} end\n"
+        lua_script += "  if not _G.rl_reset then _G.rl_reset = {} end\n"
+        # Since os.time() is not available explicitly in some proxy-wasm lua runtimes, 
+        # we can use Envoy's timestamp in milliseconds!
+        lua_script += "  local now = request_handle:timestampMillis() / 1000\n"
+        lua_script += "  if not _G.rl_reset[ip] or now > _G.rl_reset[ip] then\n"
+        lua_script += "    _G.rl_counter[ip] = 0\n"
+        lua_script += "    _G.rl_reset[ip] = now + 60\n"
+        lua_script += "  end\n"
+        lua_script += "  _G.rl_counter[ip] = _G.rl_counter[ip] + 1\n"
+        lua_script += "  if _G.rl_counter[ip] > rpm_limit then\n"
+        lua_script += "     request_handle:respond({[':status'] = '429', ['Content-Type'] = 'text/plain'}, 'Rate Limit Exceeded')\n"
+        lua_script += "     return\n"
+        lua_script += "  end\n"
+
     lua_script += "  local req_body = request_handle:body()\n"
     lua_script += "  if req_body then\n"
     lua_script += "    local body_bytes = req_body:getBytes(0, req_body:length())\n"
