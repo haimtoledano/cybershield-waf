@@ -44,6 +44,8 @@ class VirtualServer(Base):
     active = Column(Boolean, default=True)
     waf_mode = Column(Enum(WAFMode), nullable=False, default=WAFMode.Disabled)
     log_retention_days = Column(Integer, default=7)
+    rate_limit_enabled = Column(Boolean, default=False)
+    rate_limit_rpm = Column(Integer, default=100)
 
     exclusions = relationship("RuleExclusion", back_populates="virtual_server", cascade="all, delete-orphan")
     profiles = relationship("VirtualServerProfile", back_populates="virtual_server", cascade="all, delete-orphan")

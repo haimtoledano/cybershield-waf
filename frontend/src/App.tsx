@@ -56,7 +56,7 @@ const App: React.FC = () => {
   const [newServer, setNewServer] = useState({
     name: '', ingress_port: 0, backend_target: '', waf_mode: 'Disabled', log_retention_days: 7, profiles: []
   });
-  const [activeSettingsTab, setActiveSettingsTab] = useState<'rules' | 'apps' | 'exclusions' | 'headers'>('rules');
+  const [activeSettingsTab, setActiveSettingsTab] = useState<'rules' | 'apps' | 'exclusions' | 'headers' | 'ddos'>('rules');
   const [newHeader, setNewHeader] = useState({ direction: 'Response', header_key: '', header_value: '' });
 
   const fetchWithAuth = async (url: string, options: any = {}) => {
@@ -552,6 +552,9 @@ const App: React.FC = () => {
                    <button onClick={() => setActiveSettingsTab('headers')} className={`px-4 py-2 transition ${activeSettingsTab === 'headers' ? 'text-indigo-400 border-b-2 border-indigo-400' : 'text-slate-400 hover:text-white'}`}>
                       Custom Headers
                    </button>
+                   <button onClick={() => setActiveSettingsTab('ddos')} className={`px-4 py-2 transition ${activeSettingsTab === 'ddos' ? 'text-indigo-400 border-b-2 border-indigo-400' : 'text-slate-400 hover:text-white'}`}>
+                      DDoS Protection
+                   </button>
                 </div>
             </div>
             
@@ -685,6 +688,35 @@ const App: React.FC = () => {
                            </div>
                         ))
                     )}
+                 </div>
+              )}
+
+              {activeSettingsTab === 'ddos' && (
+                 <div className="space-y-6 bg-slate-800 p-6 rounded-xl border border-slate-700/60">
+                    <div className="flex justify-between items-center mb-4">
+                       <div>
+                          <h3 className="text-xl font-bold text-white flex items-center">
+                             <Shield className="w-6 h-6 mr-2 text-indigo-400" /> Native Rate Limiting
+                          </h3>
+                          <p className="text-slate-400 text-sm mt-1">Blocks excessive traffic from a single IP address using Envoy's native HTTP local rate limit filter.</p>
+                       </div>
+                       <button onClick={() => {
+                           const isEnabled = activeServer.rate_limit_enabled || false;
+                           updateServerSettings(activeServer, { rate_limit_enabled: !isEnabled });
+                       }} className={`w-14 h-7 rounded-full transition-colors relative flex-shrink-0 ${activeServer.rate_limit_enabled ? 'bg-indigo-500' : 'bg-slate-600'}`}>
+                          <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all shadow-md ${activeServer.rate_limit_enabled ? 'left-8' : 'left-1'}`}></div>
+                       </button>
+                    </div>
+
+                    <div className={`transition-opacity ${activeServer.rate_limit_enabled ? 'opacity-100' : 'opacity-50 pointer-events-none'}`}>
+                        <label className="block text-sm font-medium text-slate-300 mb-2">Max Requests Per Minute (RPM)</label>
+                        <div className="flex items-center space-x-4">
+                            <input type="number" min="1" max="10000" disabled={!activeServer.rate_limit_enabled} value={activeServer.rate_limit_rpm !== undefined ? activeServer.rate_limit_rpm : 100}
+                               onChange={(e) => updateServerSettings(activeServer, { rate_limit_rpm: parseInt(e.target.value) })}
+                               className="w-1/3 bg-slate-900 border border-slate-700 text-white p-3 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 transition" />
+                            <span className="text-slate-400 text-sm">Requests per 60 seconds per individual remote IP address.</span>
+                        </div>
+                    </div>
                  </div>
               )}
             </div>

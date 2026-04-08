@@ -18,6 +18,8 @@ class VirtualServerBase(BaseModel):
     active: bool = True
     waf_mode: WAFMode = WAFMode.Disabled
     log_retention_days: int = 7
+    rate_limit_enabled: bool = False
+    rate_limit_rpm: int = 100
 
 class VirtualServerCreate(VirtualServerBase):
     profiles: List[str] = []
@@ -29,6 +31,8 @@ class VirtualServerUpdate(BaseModel):
     active: Optional[bool] = None
     waf_mode: Optional[WAFMode] = None
     log_retention_days: Optional[int] = None
+    rate_limit_enabled: Optional[bool] = None
+    rate_limit_rpm: Optional[int] = None
     profiles: Optional[List[str]] = None
 
 class ProfileRead(BaseModel):

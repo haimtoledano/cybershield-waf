@@ -85,6 +85,15 @@ def generate_lds(servers):
         if response_headers:
             route_config["response_headers_to_add"] = response_headers
 
+        vhost = {
+            "name": server.name,
+            "domains": ["*"],
+            "routes": [route_config]
+        }
+        
+        if getattr(server, "rate_limit_enabled", False):
+            vhost["rate_limits"] = [{"actions": [{"remote_address": {}}]}]
+
         listener = {
             "@type": "type.googleapis.com/envoy.config.listener.v3.Listener",
             "name": f"listener_{server.name}",
@@ -97,11 +106,7 @@ def generate_lds(servers):
                         "stat_prefix": f"listener_{server.name}",
                         "route_config": {
                             "name": "local_route",
-                            "virtual_hosts": [{
-                                "name": server.name,
-                                "domains": ["*"],
-                                "routes": [route_config]
-                            }]
+                            "virtual_hosts": [vhost]
                         },
                         "use_remote_address": True,
                         "forward_client_cert_details": "SANITIZE_SET",
@@ -148,19 +153,47 @@ def generate_lds(servers):
                                 }
                             }
                         }],
-                        "http_filters": [
-                            {
-                                "name": "envoy.filters.http.buffer",
-                                "typed_config": {
-                                    "@type": "type.googleapis.com/envoy.extensions.filters.http.buffer.v3.Buffer",
-                                    "max_request_bytes": 1048576
-                                }
-                            }
-                        ]
+                        "http_filters": []
                     }
                 }]
             }]
         }
+
+        http_filters = []
+        if getattr(server, "rate_limit_enabled", False):
+            http_filters.append({
+                "name": "envoy.filters.http.local_ratelimit",
+                "typed_config": {
+                    "@type": "type.googleapis.com/envoy.extensions.filters.http.local_ratelimit.v3.LocalRateLimit",
+                    "stat_prefix": "http_local_rate_limiter",
+                    "token_bucket": {
+                        "max_tokens": server.rate_limit_rpm,
+                        "tokens_per_fill": server.rate_limit_rpm,
+                        "fill_interval": "60s"
+                    },
+                    "filter_enabled": {"runtime_key": "local_rate_limit_enabled", "default_value": {"numerator": 100, "denominator": "HUNDRED"}},
+                    "filter_enforced": {"runtime_key": "local_rate_limit_enforced", "default_value": {"numerator": 100, "denominator": "HUNDRED"}},
+                    "response_headers_to_add": [{"append_action": "OVERWRITE_IF_EXISTS_OR_ADD", "header": {"key": "x-local-rate-limit", "value": "true"}}],
+                    "descriptors": [{
+                        "entries": [{"key": "remote_address"}],
+                        "token_bucket": {
+                            "max_tokens": server.rate_limit_rpm,
+                            "tokens_per_fill": server.rate_limit_rpm,
+                            "fill_interval": "60s"
+                        }
+                    }]
+                }
+            })
+
+        http_filters.append({
+            "name": "envoy.filters.http.buffer",
+            "typed_config": {
+                "@type": "type.googleapis.com/envoy.extensions.filters.http.buffer.v3.Buffer",
+                "max_request_bytes": 1048576
+            }
+        })
+        
+        listener["filter_chains"][0]["filters"][0]["typed_config"]["http_filters"] = http_filters
         
         if server.waf_mode != 'Disabled':
             coraza_config = generate_coraza_config(server)

@@ -1,18 +1,5 @@
 resources:
 - '@type': type.googleapis.com/envoy.config.cluster.v3.Cluster
-  name: Demo Test 2
-  connect_timeout: 0.25s
-  type: STRICT_DNS
-  load_assignment:
-    cluster_name: Demo Test 2
-    endpoints:
-    - lb_endpoints:
-      - endpoint:
-          address:
-            socket_address:
-              address: waf-backend
-              port_value: 8000
-- '@type': type.googleapis.com/envoy.config.cluster.v3.Cluster
   name: home
   connect_timeout: 0.25s
   type: STRICT_DNS
