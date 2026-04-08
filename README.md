@@ -72,7 +72,7 @@ This deploys the Envoy data-plane, Postgres database, logging workers, backend A
 
 ### Initial Setup
 1. Upon first run, the system bootstraps a superadmin. Navigate to `http://localhost:5173`.
-2. Initial credentials: `123qweASDF`.
+2. Initial credentials: `admin` / `CyberShield2026!`.
 3. You will be immediately prompted to link your Authenticator app via QR code.
 4. Begin mapping Virtual Servers and routing HTTP traffic through Envoy (Default Port mappings via Docker).
 
