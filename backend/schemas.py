@@ -109,3 +109,29 @@ class SystemStatsRead(BaseModel):
     total_blocked_24h: int
     active_virtual_servers: int
     active_blacklisted_ips: int
+
+class TopItem(BaseModel):
+    key: str
+    count: int
+
+class ReportPreviewRead(BaseModel):
+    total_requests: int
+    total_blocked: int
+    top_ips: List[TopItem]
+    top_reasons: List[TopItem]
+    status_distribution: List[TopItem]
+
+class ReportSubscriptionBase(BaseModel):
+    frequency: str # 'daily', 'weekly'
+
+class ReportSubscriptionRead(ReportSubscriptionBase):
+    id: str
+    user_id: str
+    last_sent: Optional[datetime] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class ReportSubscriptionCreate(ReportSubscriptionBase):
+    pass

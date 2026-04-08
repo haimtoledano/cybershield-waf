@@ -132,6 +132,17 @@ class AuditLog(Base):
     action = Column(String)
     details = Column(Text, nullable=True)
 
+class ReportSubscription(Base):
+    __tablename__ = "report_subscriptions"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String(36), ForeignKey('users.id'))
+    frequency = Column(String(20)) # 'daily', 'weekly'
+    last_sent = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User")
+
 def log_audit(db, user, action: str, details: str = None):
     entry = AuditLog(
         user_id=user.id if user else None,

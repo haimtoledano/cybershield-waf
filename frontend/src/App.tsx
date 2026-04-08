@@ -6,6 +6,8 @@ import IPRulesTab from './IPRulesTab';
 import SettingsTab from './SettingsTab';
 import AuditLogsTab from './AuditLogsTab';
 import DashboardTab from './DashboardTab';
+import ReportsTab from './ReportsTab';
+import { BarChart3 } from 'lucide-react';
 
 const ruleCategories = [
   { id: 'Protocol-Enforcement', label: 'Protocol Enforcement', desc: 'Enforces strict HTTP protocol standards.', icon: ShieldCheck },
@@ -34,7 +36,7 @@ const appCategories = [
 ];
 
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'dashboard'|'servers'|'logs'|'users'|'ip_rules'|'settings'|'audit_logs'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard'|'reports'|'servers'|'logs'|'users'|'ip_rules'|'settings'|'audit_logs'>('dashboard');
   const [authToken, setAuthToken] = useState<string | null>(localStorage.getItem('waf_token'));
   const [currentUser, setCurrentUser] = useState<any>(JSON.parse(localStorage.getItem('waf_user') || 'null'));
   const [mfaSetupUri, setMfaSetupUri] = useState<string | null>(null);
@@ -340,6 +342,9 @@ const App: React.FC = () => {
           <button onClick={() => setActiveTab('servers')} className={buttonStyle(activeTab === 'servers')}>
             <Server className="w-4 h-4 mr-2" /> Virtual Servers
           </button>
+          <button onClick={() => setActiveTab('reports')} className={buttonStyle(activeTab === 'reports')}>
+            <BarChart3 className="w-4 h-4 mr-2" /> Security Intelligence
+          </button>
           <button onClick={() => setActiveTab('logs')} className={buttonStyle(activeTab === 'logs')}>
             <Terminal className="w-4 h-4 mr-2" /> Traffic Logs
           </button>
@@ -370,6 +375,7 @@ const App: React.FC = () => {
 
       <div className="w-full max-w-5xl relative z-10">
         {activeTab === 'dashboard' && <DashboardTab authToken={authToken} />}
+        {activeTab === 'reports' && <ReportsTab authToken={authToken || ''} />}
 
         {activeTab === 'servers' && (
           <div>

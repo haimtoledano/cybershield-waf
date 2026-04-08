@@ -191,12 +191,115 @@ def process_log_entry(entry):
                             requests.post("http://waf-backend:8000/api/internal/send-email", json={"vs_id": vs_id}, timeout=3)
                         except: pass
 
+def report_worker():
+    while True:
+        try:
+            with SessionLocal() as db:
+                # Check for subscriptions
+                subs = db.execute(text("""
+                    SELECT rs.id, rs.user_id, rs.frequency, rs.last_sent, u.email 
+                    FROM report_subscriptions rs
+                    JOIN users u ON rs.user_id = u.id
+                    WHERE u.email IS NOT NULL
+                """)).fetchall()
+
+                for sub_id, user_id, freq, last_sent, user_email in subs:
+                    # Check if it's time to send
+                    now = datetime.utcnow()
+                    should_send = False
+                    if not last_sent:
+                        should_send = True
+                    else:
+                        if freq == 'daily' and now - last_sent > timedelta(days=1):
+                            should_send = True
+                        elif freq == 'weekly' and now - last_sent > timedelta(days=7):
+                            should_send = True
+                    
+                    if should_send:
+                        # Generate Report Data
+                        days = 1 if freq == 'daily' else 7
+                        start_time = now - timedelta(days=days)
+                        
+                        total_req = db.execute(text("SELECT count(*) FROM access_logs WHERE timestamp > :s"), {"s": start_time}).scalar()
+                        total_blocked = db.execute(text("SELECT count(*) FROM access_logs WHERE timestamp > :s AND status_code IN (403, 406, 429)"), {"s": start_time}).scalar()
+                        
+                        top_ips = db.execute(text("""
+                            SELECT client_ip, count(*) as c 
+                            FROM access_logs 
+                            WHERE timestamp > :s 
+                            GROUP BY client_ip 
+                            ORDER BY c DESC LIMIT 5
+                        """), {"s": start_time}).fetchall()
+                        
+                        top_ips_html = "".join([f"<tr><td>{ip}</td><td>{c}</td></tr>" for ip, c in top_ips])
+                        
+                        html_content = f"""
+                        <html>
+                        <body style="background-color: #0f172a; color: #f8fafc; font-family: sans-serif; padding: 40px;">
+                            <div style="max-width: 600px; margin: 0 auto; background-color: #1e293b; border: 1px solid #334155; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);">
+                                <div style="background-color: #4f46e5; padding: 30px; text-align: center;">
+                                    <h1 style="margin: 0; font-size: 24px; letter-spacing: 2px;">CYBERSHIELD SECURITY DIGEST</h1>
+                                    <p style="margin: 5px 0 0; opacity: 0.8; font-size: 12px; text-transform: uppercase;">{freq.capitalize()} Infrastructure Report</p>
+                                </div>
+                                <div style="padding: 30px;">
+                                    <div style="display: flex; gap: 20px; margin-bottom: 30px;">
+                                        <div style="flex: 1; background-color: #0f172a; padding: 20px; border-radius: 15px; text-align: center;">
+                                            <div style="font-size: 24px; font-weight: bold; color: #38bdf8;">{total_req}</div>
+                                            <div style="font-size: 10px; color: #94a3b8; text-transform: uppercase;">Total Requests</div>
+                                        </div>
+                                        <div style="flex: 1; background-color: #0f172a; padding: 20px; border-radius: 15px; text-align: center;">
+                                            <div style="font-size: 24px; font-weight: bold; color: #f87171;">{total_blocked}</div>
+                                            <div style="font-size: 10px; color: #94a3b8; text-transform: uppercase;">Blocked</div>
+                                        </div>
+                                    </div>
+                                    <h3 style="font-size: 14px; text-transform: uppercase; color: #94a3b8; margin-bottom: 15px;">Top Attacking Sources</h3>
+                                    <table style="width: 100%; border-collapse: collapse;">
+                                        <tr style="border-bottom: 1px solid #334155; color: #94a3b8; font-size: 12px; text-align: left;">
+                                            <th style="padding: 10px;">Source IP Address</th>
+                                            <th style="padding: 10px; text-align: right;">Intercepts</th>
+                                        </tr>
+                                        {top_ips_html}
+                                    </table>
+                                    <div style="margin-top: 40px; text-align: center;">
+                                        <a href="http://localhost:5173" style="background-color: #4f46e5; color: white; padding: 12px 30px; border-radius: 10px; text-decoration: none; font-weight: bold; font-size: 14px;">VIEW FULL DASHBOARD</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </body>
+                        </html>
+                        """
+                        
+                        # Send email via backend
+                        try:
+                            import requests
+                            requests.post("http://waf-backend:8000/api/internal/send-report", json={
+                                "user_email": user_email,
+                                "frequency": freq,
+                                "html_content": html_content
+                            }, timeout=10)
+                            
+                            # Update last_sent
+                            db.execute(text("UPDATE report_subscriptions SET last_sent = :now WHERE id = :id"), {"now": now, "id": sub_id})
+                            db.commit()
+                        except Exception as e:
+                            print(f"[ReportWorker] Failed to send report: {e}")
+
+        except Exception as e:
+            print(f"[ReportWorker] Error: {e}")
+            traceback.print_exc()
+
+        time.sleep(3600) # Check every hour
+
 if __name__ == "__main__":
     time.sleep(5) # Wait for DB to be up
     
     # Start retention worker thread
     t = threading.Thread(target=retention_worker, daemon=True)
     t.start()
+    
+    # Start report worker thread
+    t_report = threading.Thread(target=report_worker, daemon=True)
+    t_report.start()
     
     # Start tailing logs
     tail_logs()

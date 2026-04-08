@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 import database
 import schemas
@@ -646,6 +647,62 @@ def get_system_stats(db: Session = Depends(database.get_db), current_user: datab
         "active_blacklisted_ips": active_blacklisted_ips
     }
 
+@app.get("/api/reports/preview", response_model=schemas.ReportPreviewRead)
+def get_report_preview(days: int = 1, db: Session = Depends(database.get_db), current_user: database.User = Depends(auth.get_current_user)):
+    time_window = datetime.utcnow() - timedelta(days=days)
+    logs = db.query(database.AccessLog).filter(database.AccessLog.timestamp >= time_window)
+    
+    total_requests = logs.count()
+    total_blocked = logs.filter(database.AccessLog.status_code.in_([403, 406, 429])).count()
+    
+    from sqlalchemy import func
+    
+    top_ips = db.query(database.AccessLog.client_ip, func.count(database.AccessLog.id).label('c')) \
+        .filter(database.AccessLog.timestamp >= time_window) \
+        .group_by(database.AccessLog.client_ip).order_by(text('c DESC')).limit(5).all()
+        
+    top_reasons = db.query(database.AccessLog.block_reason, func.count(database.AccessLog.id).label('c')) \
+        .filter(database.AccessLog.timestamp >= time_window, database.AccessLog.block_reason != None) \
+        .group_by(database.AccessLog.block_reason).order_by(text('c DESC')).limit(5).all()
+        
+    status_dist = db.query(database.AccessLog.status_code, func.count(database.AccessLog.id).label('c')) \
+        .filter(database.AccessLog.timestamp >= time_window) \
+        .group_by(database.AccessLog.status_code).all()
+
+    return {
+        "total_requests": total_requests,
+        "total_blocked": total_blocked,
+        "top_ips": [{"key": ip, "count": c} for ip, c in top_ips],
+        "top_reasons": [{"key": r, "count": c} for r, c in top_reasons],
+        "status_distribution": [{"key": str(s), "count": c} for s, c in status_dist]
+    }
+
+@app.get("/api/reports/subscriptions", response_model=list[schemas.ReportSubscriptionRead])
+def get_subscriptions(db: Session = Depends(database.get_db), current_user: database.User = Depends(auth.get_current_user)):
+    return db.query(database.ReportSubscription).filter(database.ReportSubscription.user_id == current_user.id).all()
+
+@app.post("/api/reports/subscriptions", response_model=schemas.ReportSubscriptionRead)
+def create_subscription(sub: schemas.ReportSubscriptionCreate, db: Session = Depends(database.get_db), current_user: database.User = Depends(auth.get_current_user)):
+    existing = db.query(database.ReportSubscription).filter(database.ReportSubscription.user_id == current_user.id, database.ReportSubscription.frequency == sub.frequency).first()
+    if existing:
+        return existing
+    
+    db_sub = database.ReportSubscription(user_id=current_user.id, frequency=sub.frequency)
+    db.add(db_sub)
+    db.commit()
+    db.refresh(db_sub)
+    database.log_audit(db, current_user, "SUBSCRIBE_REPORT", f"Subscribed to {sub.frequency} report")
+    return db_sub
+
+@app.delete("/api/reports/subscriptions/{sub_id}")
+def delete_subscription(sub_id: str, db: Session = Depends(database.get_db), current_user: database.User = Depends(auth.get_current_user)):
+    db_sub = db.query(database.ReportSubscription).filter(database.ReportSubscription.id == sub_id, database.ReportSubscription.user_id == current_user.id).first()
+    if db_sub:
+        db.delete(db_sub)
+        db.commit()
+        database.log_audit(db, current_user, "UNSUBSCRIBE_REPORT", f"Unsubscribed from report {sub_id}")
+    return {"status": "ok"}
+
 from pydantic import BaseModel
 class EmailPayload(BaseModel):
     vs_id: str
@@ -690,5 +747,45 @@ def internal_send_email(payload: EmailPayload, db: Session = Depends(database.ge
         database.log_audit(db, None, "SYSTEM_EMAIL_ALERT", f"DDoS threshold hit. Alert sent for {vs_name}")
     except Exception as e:
         print(f"Failed to send email: {e}")
+        
+    return {"status": "ok"}
+
+class ReportEmailPayload(BaseModel):
+    user_email: str
+    frequency: str
+    html_content: str
+
+@app.post("/api/internal/send-report")
+def internal_send_report(payload: ReportEmailPayload, db: Session = Depends(database.get_db)):
+    smtp_host = db.query(database.GlobalSettings).filter_by(setting_key='smtp_host').first()
+    smtp_port = db.query(database.GlobalSettings).filter_by(setting_key='smtp_port').first()
+    smtp_user = db.query(database.GlobalSettings).filter_by(setting_key='smtp_user').first()
+    smtp_pass = db.query(database.GlobalSettings).filter_by(setting_key='smtp_password').first()
+
+    if not all([smtp_host, smtp_host.setting_value]):
+        return {"status": "skipped", "reason": "incomplete config"}
+
+    port = int(smtp_port.setting_value) if smtp_port and smtp_port.setting_value else 587
+    
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+
+    msg = MIMEMultipart('alternative')
+    msg['Subject'] = f"CyberShield Security Digest ({payload.frequency.capitalize()})"
+    msg['From'] = smtp_user.setting_value if smtp_user and smtp_user.setting_value else "waf@localhost"
+    msg['To'] = payload.user_email
+
+    msg.attach(MIMEText(payload.html_content, 'html'))
+
+    try:
+        server = smtplib.SMTP(smtp_host.setting_value, port, timeout=10)
+        try: server.starttls()
+        except: pass
+        if smtp_user and smtp_user.setting_value and smtp_pass and smtp_pass.setting_value:
+            server.login(smtp_user.setting_value, smtp_pass.setting_value)
+        server.send_message(msg)
+        server.quit()
+    except Exception as e:
+        print(f"Failed to send report email: {e}")
         
     return {"status": "ok"}
