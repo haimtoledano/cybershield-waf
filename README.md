@@ -25,7 +25,7 @@
 ### 🌌 Spatial System Telemetry (Dashboard)
 A real-time, premium glassmorphism dashboard providing an instant live overview of infrastructure health, active threat intercepts, and an animated data flow topology map.
 
-<video src="https://github.com/haimtoledano/cybershield-waf/raw/main/assets/Dashboard.mp4" width="100%" controls autoplay loop muted></video>
+<video src="https://github.com/haimtoledano/cybershield-waf/raw/master/assets/Dashboard.mp4" width="100%" controls autoplay loop muted></video>
 
 ### 🛡️ Authentication & MFA
 Secure login panel with mandatory MFA and logo branding.
