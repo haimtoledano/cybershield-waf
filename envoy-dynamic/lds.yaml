@@ -69,36 +69,6 @@ resources:
                 req_body: '%DYNAMIC_METADATA(envoy.filters.http.lua:req_body)%'
                 resp_body: '%DYNAMIC_METADATA(envoy.filters.http.lua:resp_body)%'
         http_filters:
-        - name: envoy.filters.http.local_ratelimit
-          typed_config:
-            '@type': type.googleapis.com/envoy.extensions.filters.http.local_ratelimit.v3.LocalRateLimit
-            stat_prefix: http_local_rate_limiter
-            token_bucket:
-              max_tokens: 5
-              tokens_per_fill: 5
-              fill_interval: 60s
-            filter_enabled:
-              runtime_key: local_rate_limit_enabled
-              default_value:
-                numerator: 100
-                denominator: HUNDRED
-            filter_enforced:
-              runtime_key: local_rate_limit_enforced
-              default_value:
-                numerator: 100
-                denominator: HUNDRED
-            response_headers_to_add:
-            - append_action: OVERWRITE_IF_EXISTS_OR_ADD
-              header:
-                key: x-local-rate-limit
-                value: 'true'
-            descriptors:
-            - entries:
-              - key: remote_address
-              token_bucket:
-                max_tokens: 5
-                tokens_per_fill: 5
-                fill_interval: 60s
         - name: envoy.filters.http.buffer
           typed_config:
             '@type': type.googleapis.com/envoy.extensions.filters.http.buffer.v3.Buffer
@@ -2912,10 +2882,19 @@ resources:
           typed_config:
             '@type': type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua
             default_source_code:
-              inline_string: "-- Payload Logger Module\nfunction envoy_on_request(request_handle)\n\
-                \  local req_body = request_handle:body()\n  if req_body then\n  \
-                \  local body_bytes = req_body:getBytes(0, req_body:length())\n  \
-                \  if string.len(body_bytes) > 10240 then body_bytes = string.sub(body_bytes,\
+              inline_string: "-- Payload Logger & Rate Limiter Module\nfunction envoy_on_request(request_handle)\n\
+                \  local rpm_limit = 5\n  local ip_full = request_handle:streamInfo():downstreamDirectRemoteAddress()\n\
+                \  if not ip_full or ip_full == '' then ip_full = 'unknown' end\n\
+                \  local ip = string.match(ip_full, '^([^:]+)') or ip_full\n  if not\
+                \ _G.rl_counter then _G.rl_counter = {} end\n  if not _G.rl_reset\
+                \ then _G.rl_reset = {} end\n  local now = os.time()\n  if not _G.rl_reset[ip]\
+                \ or now > _G.rl_reset[ip] then\n    _G.rl_counter[ip] = 0\n    _G.rl_reset[ip]\
+                \ = now + 60\n  end\n  _G.rl_counter[ip] = _G.rl_counter[ip] + 1\n\
+                \  if _G.rl_counter[ip] > rpm_limit then\n     request_handle:respond({[':status']\
+                \ = '429', ['Content-Type'] = 'text/plain'}, 'Rate Limit Exceeded')\n\
+                \     return\n  end\n  local req_body = request_handle:body()\n  if\
+                \ req_body then\n    local body_bytes = req_body:getBytes(0, req_body:length())\n\
+                \    if string.len(body_bytes) > 10240 then body_bytes = string.sub(body_bytes,\
                 \ 1, 10240) end\n    request_handle:streamInfo():dynamicMetadata():set('envoy.filters.http.lua',\
                 \ 'req_body', body_bytes)\n  end\nend\n\nfunction envoy_on_response(response_handle)\n\
                 \  local resp_body = response_handle:body()\n  if resp_body then\n\

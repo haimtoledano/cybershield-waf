@@ -351,12 +351,11 @@ def generate_waf_lua(server):
     if getattr(server, "rate_limit_enabled", False):
         lua_script += f"  local rpm_limit = {server.rate_limit_rpm}\n"
         lua_script += "  local ip_full = request_handle:streamInfo():downstreamDirectRemoteAddress()\n"
+        lua_script += "  if not ip_full or ip_full == '' then ip_full = 'unknown' end\n"
         lua_script += "  local ip = string.match(ip_full, '^([^:]+)') or ip_full\n"
         lua_script += "  if not _G.rl_counter then _G.rl_counter = {} end\n"
         lua_script += "  if not _G.rl_reset then _G.rl_reset = {} end\n"
-        # Since os.time() is not available explicitly in some proxy-wasm lua runtimes, 
-        # we can use Envoy's timestamp in milliseconds!
-        lua_script += "  local now = request_handle:timestampMillis() / 1000\n"
+        lua_script += "  local now = os.time()\n"
         lua_script += "  if not _G.rl_reset[ip] or now > _G.rl_reset[ip] then\n"
         lua_script += "    _G.rl_counter[ip] = 0\n"
         lua_script += "    _G.rl_reset[ip] = now + 60\n"
@@ -459,6 +458,7 @@ def create_virtual_server(virtual_server: schemas.VirtualServerCreate, db: Sessi
     scanner.run_auto_discovery(db_virtual_server.id, db_virtual_server.backend_target, add_auto_profiles)
     
     trigger_envoy_update(db)
+    database.log_audit(db, current_user, "CREATE_VS", f"Created Virtual Server {virtual_server.name}")
     return db_virtual_server
 
 @app.get("/api/virtual-servers/", response_model=list[schemas.VirtualServerWithExclusions], status_code=status.HTTP_200_OK)
@@ -492,6 +492,7 @@ def update_virtual_server(vs_id: str, virtual_server_update: schemas.VirtualServ
     db.commit()
     db.refresh(db_virtual_server)
     trigger_envoy_update(db)
+    database.log_audit(db, current_user, "UPDATE_VS", f"Updated Virtual Server {db_virtual_server.name}")
     return db_virtual_server
 
 @app.delete("/api/virtual-servers/{vs_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -503,6 +504,7 @@ def delete_virtual_server(vs_id: str, db: Session = Depends(database.get_db), cu
     db.delete(db_virtual_server)
     db.commit()
     trigger_envoy_update(db)
+    database.log_audit(db, current_user, "DELETE_VS", f"Deleted Virtual Server {db_virtual_server.name}")
     return None
 
 import json
@@ -606,3 +608,23 @@ def delete_header(header_id: str, db: Session = Depends(database.get_db), curren
         db.commit()
         trigger_envoy_update(db)
     return None
+
+@app.get("/api/settings", response_model=list[schemas.GlobalSettingsRead])
+def get_settings(db: Session = Depends(database.get_db), current_user: database.User = Depends(auth.require_admin)):
+    return db.query(database.GlobalSettings).all()
+
+@app.put("/api/settings")
+def update_settings(settings: dict, db: Session = Depends(database.get_db), current_user: database.User = Depends(auth.require_admin)):
+    for key, value in settings.items():
+        db_setting = db.query(database.GlobalSettings).filter(database.GlobalSettings.setting_key == key).first()
+        if db_setting:
+            db_setting.setting_value = str(value)
+        else:
+            db.add(database.GlobalSettings(setting_key=key, setting_value=str(value)))
+    db.commit()
+    database.log_audit(db, current_user, "UPDATE_SETTINGS", f"Updated global settings: {list(settings.keys())}")
+    return {"status": "success"}
+
+@app.get("/api/audit-logs", response_model=list[schemas.AuditLogRead])
+def get_audit_logs(limit: int = 200, db: Session = Depends(database.get_db), current_user: database.User = Depends(auth.require_admin)):
+    return db.query(database.AuditLog).order_by(database.AuditLog.timestamp.desc()).limit(limit).all()

@@ -37,6 +37,7 @@ class IPRule(Base):
     rule_type = Column(Enum(IPRuleType), nullable=False)
     notes = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    expires_at = Column(DateTime(timezone=True), nullable=True)
 
 class User(Base):
     __tablename__ = "users"
@@ -112,6 +113,34 @@ class AccessLog(Base):
     req_payload = Column(Text, nullable=True) # Up to 10kb of request body
     resp_payload = Column(Text, nullable=True) # Up to 10kb of response body
     block_reason = Column(String, nullable=True) # Envoy RESPONSE_CODE_DETAILS
+
+class GlobalSettings(Base):
+    __tablename__ = "global_settings"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    setting_key = Column(String, index=True, unique=True, nullable=False)
+    setting_value = Column(String, nullable=True)
+    description = Column(String, nullable=True)
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+    user_id = Column(String(36), index=True)
+    username = Column(String)
+    action = Column(String)
+    details = Column(Text, nullable=True)
+
+def log_audit(db, user, action: str, details: str = None):
+    entry = AuditLog(
+        user_id=user.id if user else None,
+        username=user.username if user else "SYSTEM",
+        action=action,
+        details=details
+    )
+    db.add(entry)
+    db.commit()
 
 # Dependency
 def get_db():

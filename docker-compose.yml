@@ -4,6 +4,7 @@ services:
   envoy:
     build: ./envoy
     container_name: waf-envoy
+    command: ["/docker-entrypoint.sh", "envoy", "-c", "/etc/envoy/envoy.yaml", "--concurrency", "1"]
     volumes:
       - ./envoy.yaml:/etc/envoy/envoy.yaml
       - ./envoy-dynamic:/etc/envoy/dynamic

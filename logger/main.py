@@ -19,28 +19,39 @@ def retention_worker():
         try:
             with SessionLocal() as db:
                 print("[Retention] Running retention policy check...", flush=True)
-                # Fetch all VS
+                # Build list of active servers to cleanup
                 servers = db.execute(text("SELECT id, log_retention_days FROM virtual_servers")).fetchall()
                 for server in servers:
                     vs_id = server[0]
-                    retention_days = server[1] or 7 # Default to 7 if null
-                    cutoff_date = datetime.utcnow() - timedelta(days=retention_days)
-                    
-                    # Delete old logs for this VS
+                    retention_days = server[1] or 7
+                    cutoff = datetime.utcnow() - timedelta(days=retention_days)
                     deleted = db.execute(
                         text("DELETE FROM access_logs WHERE vs_id = :vs_id AND timestamp < :cutoff"),
-                        {"vs_id": vs_id, "cutoff": cutoff_date}
+                        {"vs_id": vs_id, "cutoff": cutoff}
                     ).rowcount
-                    db.commit()
                     if deleted > 0:
-                        print(f"[Retention] Deleted {deleted} logs for VS {vs_id} (Older than {retention_days} days)", flush=True)
+                        print(f"[Retention] Deleted {deleted} logs for VS {vs_id}")
+                
+                # Cleanup Expired IP Rules
+                deleted_ips = db.execute(
+                    text("DELETE FROM ip_rules WHERE expires_at IS NOT NULL AND expires_at < :now"),
+                    {"now": datetime.utcnow()}
+                ).rowcount
+                if deleted_ips > 0:
+                    print(f"[Retention] Deleted {deleted_ips} expired dynamic IP Blacklists")
+                    db.commit()
+                    import requests
+                    try: requests.post("http://waf-backend:8000/api/internal/trigger-update", timeout=1)
+                    except: pass
+                else:
+                    db.commit()
                         
         except Exception as e:
-            print(f"[Retention] Error in retention worker: {e}", flush=True)
+            print(f"[Retention] Error: {e}", flush=True)
+            import traceback
             traceback.print_exc()
         
-        # Run every 10 minutes
-        time.sleep(600)
+        time.sleep(60)
 
 def tail_logs():
     print(f"[Logger] Waiting for {LOG_FILE} to exist...", flush=True)
@@ -122,6 +133,63 @@ def process_log_entry(entry):
             }
         )
         db.commit()
+        
+        # Send Syslog
+        try:
+            syslog_host = db.execute(text("SELECT setting_value FROM global_settings WHERE setting_key = 'syslog_host'")).fetchone()
+            if syslog_host and syslog_host[0]:
+                syslog_port = db.execute(text("SELECT setting_value FROM global_settings WHERE setting_key = 'syslog_port'")).fetchone()
+                s_port = int(syslog_port[0]) if syslog_port and syslog_port[0] else 514
+                import socket
+                sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                msg = f"<13>{datetime.utcnow().strftime('%b %d %H:%M:%S')} cybershield-waf: {json.dumps(entry)}"
+                sock.sendto(msg.encode('utf-8'), (syslog_host[0], s_port))
+                sock.close()
+        except:
+            pass
+            
+        # Handle 429 Blacklisting and DDoS Disable
+        if status_code == 429:
+            ip = entry.get("client_ip")
+            if ip:
+                ttl_row = db.execute(text("SELECT setting_value FROM global_settings WHERE setting_key = 'ddos_blacklist_ttl_minutes'")).fetchone()
+                try:
+                    ttl = int(ttl_row[0]) if ttl_row and ttl_row[0] else 10
+                except:
+                    ttl = 10
+                
+                expires_at = datetime.utcnow() + timedelta(minutes=ttl)
+                import uuid
+                
+                db.execute(text("""
+                INSERT INTO ip_rules (id, ip_address, rule_type, notes, created_at, expires_at)
+                VALUES (:id, :ip, 'Blacklist', 'Auto-blocked DDoS (Rate Limit)', :now, :expires_at)
+                ON CONFLICT (ip_address) DO UPDATE SET expires_at = EXCLUDED.expires_at
+                """), {"id": str(uuid.uuid4()), "ip": ip, "now": datetime.utcnow(), "expires_at": expires_at})
+                db.commit()
+                
+                # Tell backend to regenerate LDS because a new IP rule was added
+                import requests
+                try: requests.post("http://waf-backend:8000/api/internal/trigger-update", timeout=1)
+                except: pass
+                
+                # Check for DDoS Virtual Server Toggling
+                three_mins_ago = datetime.utcnow() - timedelta(minutes=3)
+                cnt_row = db.execute(text("SELECT count(distinct client_ip) FROM access_logs WHERE vs_id = :vs_id AND status_code = 429 AND timestamp > :start_time"), {
+                    "vs_id": vs_id, "start_time": three_mins_ago
+                }).fetchone()
+                
+                if cnt_row and cnt_row[0] >= 5:
+                    # Target has > 5 distinct IPs hit 429 threshold in 3 minutes -> DDoS!
+                    # Disable it if not already offline
+                    vs_active = db.execute(text("SELECT active FROM virtual_servers WHERE id = :v"), {"v": vs_id}).fetchone()
+                    if vs_active and vs_active[0] == True:
+                        db.execute(text("UPDATE virtual_servers SET active = false WHERE id = :v"), {"v": vs_id})
+                        db.commit()
+                        try:
+                            requests.post("http://waf-backend:8000/api/internal/trigger-update", timeout=1)
+                            requests.post("http://waf-backend:8000/api/internal/send-email", json={"vs_id": vs_id}, timeout=3)
+                        except: pass
 
 if __name__ == "__main__":
     time.sleep(5) # Wait for DB to be up

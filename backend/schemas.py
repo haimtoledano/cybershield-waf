@@ -76,5 +76,30 @@ class VirtualServerWithExclusions(VirtualServerRead):
     profiles: List[ProfileRead] = []
     headers: List[CustomHeaderRead] = []
 
+
+    class Config:
+        from_attributes = True
+
+from datetime import datetime
+
+class GlobalSettingsBase(BaseModel):
+    setting_key: str
+    setting_value: Optional[str] = None
+    description: Optional[str] = None
+
+class GlobalSettingsRead(GlobalSettingsBase):
+    id: str
+
+    class Config:
+        from_attributes = True
+
+class AuditLogRead(BaseModel):
+    id: str
+    timestamp: datetime
+    user_id: Optional[str] = None
+    username: Optional[str] = None
+    action: str
+    details: Optional[str] = None
+
     class Config:
         from_attributes = True
