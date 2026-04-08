@@ -628,3 +628,50 @@ def update_settings(settings: dict, db: Session = Depends(database.get_db), curr
 @app.get("/api/audit-logs", response_model=list[schemas.AuditLogRead])
 def get_audit_logs(limit: int = 200, db: Session = Depends(database.get_db), current_user: database.User = Depends(auth.require_admin)):
     return db.query(database.AuditLog).order_by(database.AuditLog.timestamp.desc()).limit(limit).all()
+
+from pydantic import BaseModel
+class EmailPayload(BaseModel):
+    vs_id: str
+
+import smtplib
+from email.mime.text import MIMEText
+
+@app.post("/api/internal/trigger-update")
+def internal_trigger_update(db: Session = Depends(database.get_db)):
+    trigger_envoy_update(db)
+    return {"status": "ok"}
+
+@app.post("/api/internal/send-email")
+def internal_send_email(payload: EmailPayload, db: Session = Depends(database.get_db)):
+    smtp_host = db.query(database.GlobalSettings).filter_by(setting_key='smtp_host').first()
+    smtp_port = db.query(database.GlobalSettings).filter_by(setting_key='smtp_port').first()
+    smtp_user = db.query(database.GlobalSettings).filter_by(setting_key='smtp_user').first()
+    smtp_pass = db.query(database.GlobalSettings).filter_by(setting_key='smtp_password').first()
+    admin_email = db.query(database.GlobalSettings).filter_by(setting_key='admin_email').first()
+
+    vs = db.query(database.VirtualServer).filter_by(id=payload.vs_id).first()
+    vs_name = vs.name if vs else payload.vs_id
+
+    if not all([smtp_host, admin_email, smtp_host.setting_value, admin_email.setting_value]):
+        return {"status": "skipped", "reason": "incomplete config"}
+
+    port = int(smtp_port.setting_value) if smtp_port and smtp_port.setting_value else 587
+    
+    msg = MIMEText(f"Alert! The CyberShield Virtual Server '{vs_name}' has been automatically deactivated because it is under a severe DDoS attack.\n\nPlease log in to the dashboard to review the logs and manage IP blacklists.")
+    msg['Subject'] = f"CyberShield WAF Alert: DDoS detected on {vs_name}"
+    msg['From'] = smtp_user.setting_value if smtp_user and smtp_user.setting_value else "waf@localhost"
+    msg['To'] = admin_email.setting_value
+
+    try:
+        server = smtplib.SMTP(smtp_host.setting_value, port, timeout=10)
+        try: server.starttls()
+        except: pass
+        if smtp_user and smtp_user.setting_value and smtp_pass and smtp_pass.setting_value:
+            server.login(smtp_user.setting_value, smtp_pass.setting_value)
+        server.send_message(msg)
+        server.quit()
+        database.log_audit(db, None, "SYSTEM_EMAIL_ALERT", f"DDoS threshold hit. Alert sent for {vs_name}")
+    except Exception as e:
+        print(f"Failed to send email: {e}")
+        
+    return {"status": "ok"}

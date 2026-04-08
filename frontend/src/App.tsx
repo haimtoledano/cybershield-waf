@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Server, Activity, PlusCircle, X, Trash2, Shield, ShieldCheck, Terminal, ShieldAlert, ChevronDown, ChevronUp, AlertOctagon, LayoutTemplate, Cloud, Code, User, Users, Database, LogOut } from 'lucide-react';
+import { Server, Activity, PlusCircle, X, Trash2, Shield, ShieldCheck, Terminal, ShieldAlert, ChevronDown, ChevronUp, AlertOctagon, LayoutTemplate, Cloud, Code, User, Users, Database, LogOut, Settings, ClipboardList } from 'lucide-react';
 import { LoginView, MFASetupView } from './AuthViews';
 import UsersTab from './UsersTab';
 import IPRulesTab from './IPRulesTab';
+import SettingsTab from './SettingsTab';
+import AuditLogsTab from './AuditLogsTab';
 
 const ruleCategories = [
   { id: 'Protocol-Enforcement', label: 'Protocol Enforcement', desc: 'Enforces strict HTTP protocol standards.', icon: ShieldCheck },
@@ -31,7 +33,7 @@ const appCategories = [
 ];
 
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'servers'|'logs'|'users'|'ip_rules'>('servers');
+  const [activeTab, setActiveTab] = useState<'servers'|'logs'|'users'|'ip_rules'|'settings'|'audit_logs'>('servers');
   const [authToken, setAuthToken] = useState<string | null>(localStorage.getItem('waf_token'));
   const [currentUser, setCurrentUser] = useState<any>(JSON.parse(localStorage.getItem('waf_user') || 'null'));
   const [mfaSetupUri, setMfaSetupUri] = useState<string | null>(null);
@@ -314,42 +316,55 @@ const App: React.FC = () => {
       return <MFASetupView setupUri={mfaSetupUri} onVerify={handleMfaVerify} />;
   }
 
+  const buttonStyle = (isActive: boolean) => 
+    `flex items-center px-4 py-2.5 rounded-xl text-sm font-bold transition-all shadow-md backdrop-blur-sm border ${
+      isActive 
+      ? 'bg-indigo-600 border-indigo-500/50 text-white shadow-indigo-500/30 scale-105 z-10' 
+      : 'bg-slate-800/60 border-slate-700/50 text-slate-400 hover:text-white hover:bg-slate-700 hover:scale-105'
+    }`;
+
   return (
-    <div className="flex flex-col items-center min-h-screen p-10 bg-gradient-to-br from-slate-900 to-indigo-950">
-      <div className="flex items-center mb-6 w-full max-w-5xl justify-between border-b border-indigo-500/30 pb-4">
-        <div className="flex items-center space-x-3">
-          <img src="/cybershield_logo.png" alt="CyberShield Logo" className="h-10 w-10 object-contain shadow-indigo-500/50 drop-shadow-[0_0_15px_rgba(79,70,229,0.5)] rounded-xl" />
-          <h1 className="text-xl font-bold tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-300 hidden md:block">
-            CyberShield
-          </h1>
-        </div>
-        <div className="flex space-x-2 overflow-x-auto whitespace-nowrap custom-scrollbar pb-1">
-          <button onClick={() => setActiveTab('servers')} className={`flex items-center flex-shrink-0 px-3 py-1.5 rounded-lg text-sm font-semibold transition ${activeTab === 'servers' ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'}`}>
-            <Server className="w-4 h-4 flex-shrink-0 mr-1.5" /> Virtual Servers
+    <div className="flex flex-col items-center min-h-screen p-6 md:p-10 bg-gradient-to-br from-slate-900 to-indigo-950 relative overflow-x-hidden">
+      {/* Background Watermark */}
+      <div className="fixed inset-0 pointer-events-none flex flex-col justify-center items-center opacity-[0.03] z-0 select-none">
+         <img src="/cybershield_logo.png" alt="Watermark" className="h-64 w-64 md:h-96 md:w-96 object-contain" />
+         <h1 className="text-6xl md:text-[10rem] font-black tracking-widest text-white mt-10">CyberShield</h1>
+      </div>
+
+      <div className="flex justify-center mb-8 w-full max-w-6xl border-b border-indigo-500/30 pb-6 pt-2 relative z-10 overflow-hidden">
+        <div className="flex space-x-3 overflow-x-auto whitespace-nowrap custom-scrollbar justify-start md:justify-center w-full pb-2 px-2">
+          <button onClick={() => setActiveTab('servers')} className={buttonStyle(activeTab === 'servers')}>
+            <Server className="w-4 h-4 mr-2" /> Virtual Servers
           </button>
-          <button onClick={() => setActiveTab('logs')} className={`flex items-center flex-shrink-0 px-3 py-1.5 rounded-lg text-sm font-semibold transition ${activeTab === 'logs' ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'}`}>
-            <Terminal className="w-4 h-4 flex-shrink-0 mr-1.5" /> Traffic Logs
+          <button onClick={() => setActiveTab('logs')} className={buttonStyle(activeTab === 'logs')}>
+            <Terminal className="w-4 h-4 mr-2" /> Traffic Logs
           </button>
           {currentUser?.role === 'admin' && (
             <>
-              <button onClick={() => setActiveTab('users')} className={`flex items-center flex-shrink-0 px-3 py-1.5 rounded-lg text-sm font-semibold transition ${activeTab === 'users' ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'}`}>
-                <Users className="w-4 h-4 flex-shrink-0 mr-1.5" /> Users
+              <button onClick={() => setActiveTab('users')} className={buttonStyle(activeTab === 'users')}>
+                <Users className="w-4 h-4 mr-2" /> Users
               </button>
-              <button onClick={() => setActiveTab('ip_rules')} className={`flex items-center flex-shrink-0 px-3 py-1.5 rounded-lg text-sm font-semibold transition ${activeTab === 'ip_rules' ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'}`}>
-                <ShieldAlert className="w-4 h-4 flex-shrink-0 mr-1.5 text-red-400" /> IP Rules
+              <button onClick={() => setActiveTab('ip_rules')} className={buttonStyle(activeTab === 'ip_rules')}>
+                <ShieldAlert className="w-4 h-4 mr-2 text-red-500" /> IP Rules
+              </button>
+              <button onClick={() => setActiveTab('audit_logs')} className={buttonStyle(activeTab === 'audit_logs')}>
+                <ClipboardList className="w-4 h-4 mr-2" /> Audit Logs
+              </button>
+              <button onClick={() => setActiveTab('settings')} className={buttonStyle(activeTab === 'settings')}>
+                <Settings className="w-4 h-4 mr-2" /> Settings
               </button>
             </>
           )}
-          <button onClick={() => setIsProfileModalOpen(true)} className="flex items-center flex-shrink-0 px-3 py-1.5 rounded-lg text-sm font-semibold transition bg-slate-800 text-slate-400 hover:text-white">
-            <User className="w-4 h-4 flex-shrink-0 mr-1.5" /> My Profile
+          <button onClick={() => setIsProfileModalOpen(true)} className={buttonStyle(false)}>
+            <User className="w-4 h-4 mr-2" /> My Profile
           </button>
-          <button onClick={handleLogout} className="flex items-center flex-shrink-0 px-3 py-1.5 rounded-lg text-sm font-semibold transition bg-red-900/30 text-red-500 hover:bg-red-800 hover:text-white border border-red-500/30">
-            <LogOut className="w-4 h-4 flex-shrink-0 mr-1.5" /> Logout
+          <button onClick={handleLogout} className="flex items-center px-4 py-2.5 rounded-xl text-sm font-bold transition-all shadow-md backdrop-blur-sm border bg-red-900/20 border-red-500/30 text-red-400 hover:bg-red-800 hover:text-white hover:scale-105">
+            <LogOut className="w-4 h-4 mr-2" /> Logout
           </button>
         </div>
       </div>
 
-      <div className="w-full max-w-5xl">
+      <div className="w-full max-w-5xl relative z-10">
         {activeTab === 'servers' && (
           <div>
             <div className="flex justify-end mb-4">
@@ -536,6 +551,14 @@ const App: React.FC = () => {
 
         {activeTab === 'ip_rules' && currentUser?.role === 'admin' && (
             <IPRulesTab authToken={authToken} />
+        )}
+
+        {activeTab === 'settings' && currentUser?.role === 'admin' && (
+            <SettingsTab authToken={authToken} />
+        )}
+
+        {activeTab === 'audit_logs' && currentUser?.role === 'admin' && (
+            <AuditLogsTab authToken={authToken} />
         )}
       </div>
 
