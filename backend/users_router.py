@@ -97,7 +97,7 @@ def reset_user_mfa(user_id: str, db: Session = Depends(get_db), current_admin: U
     user.mfa_enabled = False
     db.commit()
     
-    uri = pyotp.totp.TOTP(secret).provisioning_uri(name=user.username, issuer_name="CyberShield WAF")
+    uri = pyotp.totp.TOTP(secret).provisioning_uri(name=user.username, issuer_name="LuminaWAF")
     return {"uri": uri, "secret": secret}
 
 from auth import get_current_user

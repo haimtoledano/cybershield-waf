@@ -12,7 +12,7 @@ def run_auto_discovery(vs_id: str, backend_target: str, db_add_profile_callback)
             if not backend_target.startswith("http"):
                 target_url = f"http://{backend_target}"
                 
-            req = urllib.request.Request(target_url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) CyberShield/1.0'})
+            req = urllib.request.Request(target_url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) LuminaWAF/1.0'})
             try:
                 with urllib.request.urlopen(req, timeout=3.0) as response:
                     headers = response.info()

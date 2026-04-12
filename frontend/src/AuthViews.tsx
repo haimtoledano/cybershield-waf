@@ -32,8 +32,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ mfaRequired, errorMsg, onL
     <div className="min-h-screen flex items-center justify-center bg-gray-900 p-4">
       <div className="w-full max-w-md bg-slate-800 p-8 rounded-xl shadow-2xl border border-slate-700">
         <div className="text-center mb-10 flex flex-col items-center">
-          <img src="/cybershield_logo.png" alt="CyberShield Logo" className="h-20 w-20 mb-4 object-contain shadow-indigo-500/50 drop-shadow-[0_0_15px_rgba(79,70,229,0.5)] rounded-2xl" />
-          <h1 className="text-3xl font-bold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-300">CyberShield</h1>
+          <img src="/luminawaf_logo.png" alt="LuminaWAF Logo" className="h-20 w-20 mb-4 object-contain shadow-indigo-500/50 drop-shadow-[0_0_15px_rgba(79,70,229,0.5)] rounded-2xl" />
+          <h1 className="text-3xl font-bold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-300">LuminaWAF</h1>
           <p className="text-slate-400 mt-2 font-mono text-sm uppercase tracking-widest">Control Plane Login</p>
         </div>
 
@@ -121,7 +121,7 @@ export const MFASetupView: React.FC<MFASetupViewProps> = ({ setupUri, onVerify }
     <div className="min-h-screen flex items-center justify-center bg-gray-900 p-4">
       <div className="w-full max-w-lg bg-slate-800 p-8 rounded-xl shadow-2xl border border-slate-700 space-y-8">
         <div className="text-center flex flex-col items-center">
-          <img src="/cybershield_logo.png" alt="CyberShield Logo" className="h-16 w-16 mb-4 object-contain shadow-indigo-500/50 drop-shadow-[0_0_15px_rgba(79,70,229,0.5)] rounded-2xl" />
+          <img src="/luminawaf_logo.png" alt="LuminaWAF Logo" className="h-16 w-16 mb-4 object-contain shadow-indigo-500/50 drop-shadow-[0_0_15px_rgba(79,70,229,0.5)] rounded-2xl" />
           <h2 className="text-3xl font-bold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-300 mb-2">2FA Setup Required</h2>
           <p className="text-slate-400">Scan the QR code with your authenticator app to enable Two-Factor Authentication.</p>
         </div>

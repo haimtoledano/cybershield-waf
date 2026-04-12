@@ -6,7 +6,8 @@ import {
   ShieldAlert, 
   TrendingUp,
   Activity,
-  BellRing
+  BellRing,
+  Server
 } from 'lucide-react';
 
 interface ReportsTabProps {
@@ -16,6 +17,7 @@ interface ReportsTabProps {
 const ReportsTab: React.FC<ReportsTabProps> = ({ authToken }) => {
   const [reportData, setReportData] = useState<any>(null);
   const [subscriptions, setSubscriptions] = useState<any[]>([]);
+  const [servers, setServers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [days, setDays] = useState(1);
 
@@ -41,9 +43,20 @@ const ReportsTab: React.FC<ReportsTabProps> = ({ authToken }) => {
     }
   };
 
+  const fetchServers = async () => {
+    try {
+      const res = await fetch(`http://localhost:8555/api/virtual-servers/`, {
+        headers: { 'Authorization': `Bearer ${authToken}` }
+      });
+      if (res.ok) setServers(await res.json());
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   useEffect(() => {
     setLoading(true);
-    Promise.all([fetchReport(), fetchSubscriptions()]).finally(() => setLoading(false));
+    Promise.all([fetchReport(), fetchSubscriptions(), fetchServers()]).finally(() => setLoading(false));
   }, [days, authToken]);
 
   const toggleSubscription = async (frequency: string) => {
@@ -117,6 +130,24 @@ const ReportsTab: React.FC<ReportsTabProps> = ({ authToken }) => {
               <ShieldAlert className="w-5 h-5 text-red-500 mb-4" />
               <div className="text-3xl font-black text-red-400">{reportData?.total_blocked.toLocaleString()}</div>
               <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Blocked Actions</div>
+           </div>
+
+           {/* Infrastructure Health Card */}
+           <div className="col-span-2 bg-slate-900/40 backdrop-blur-xl border border-slate-700/50 p-6 rounded-3xl">
+              <div className="flex items-center justify-between mb-4">
+                 <div className="flex items-center">
+                    <Server className="w-4 h-4 text-indigo-400 mr-2" />
+                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Infrastructure Health</h4>
+                 </div>
+                 <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${servers.every(s => s.is_online) ? 'bg-green-900/30 text-green-400 border-green-500/30' : 'bg-red-900/30 text-red-400 border-red-500/30'}`}>
+                    {servers.every(s => s.is_online) ? 'ALL SYSTEMS OPERATIONAL' : 'DEGRADED PERFORMANCE'}
+                 </span>
+              </div>
+              <div className="flex space-x-1.5">
+                 {servers.map(s => (
+                    <div key={s.id} title={`${s.name}: ${s.is_online ? 'Healthy' : 'Offline'}`} className={`h-1.5 flex-1 rounded-full ${s.is_online ? 'bg-green-500/50' : 'bg-red-500'}`}></div>
+                 ))}
+              </div>
            </div>
 
            {/* Email Subscriptions Sub-Panel */}

@@ -61,6 +61,8 @@ class VirtualServer(Base):
     log_retention_days = Column(Integer, default=7)
     rate_limit_enabled = Column(Boolean, default=False)
     rate_limit_rpm = Column(Integer, default=100)
+    is_online = Column(Boolean, default=True)
+    last_check = Column(DateTime, nullable=True)
 
     exclusions = relationship("RuleExclusion", back_populates="virtual_server", cascade="all, delete-orphan")
     profiles = relationship("VirtualServerProfile", back_populates="virtual_server", cascade="all, delete-orphan")

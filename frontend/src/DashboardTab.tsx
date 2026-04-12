@@ -7,23 +7,30 @@ interface DashboardTabProps {
 
 const DashboardTab: React.FC<DashboardTabProps> = ({ authToken }) => {
   const [stats, setStats] = useState<any>(null);
+  const [servers, setServers] = useState<any[]>([]);
 
   useEffect(() => {
-    const fetchStats = async () => {
+    const fetchData = async () => {
       try {
-        const res = await fetch('http://localhost:8555/api/stats', {
-          headers: { 'Authorization': `Bearer ${authToken}` }
-        });
-        if (res.ok) setStats(await res.json());
+        const headers = { 'Authorization': `Bearer ${authToken}` };
+        const [statsRes, serversRes] = await Promise.all([
+          fetch('http://localhost:8555/api/stats', { headers }),
+          fetch('http://localhost:8555/api/virtual-servers/', { headers })
+        ]);
+        if (statsRes.ok) setStats(await statsRes.json());
+        if (serversRes.ok) setServers(await serversRes.json());
       } catch (e) {
         console.error(e);
       }
     };
     
-    fetchStats();
-    const interval = setInterval(fetchStats, 5000);
+    fetchData();
+    const interval = setInterval(fetchData, 5000);
     return () => clearInterval(interval);
   }, [authToken]);
+
+  const allHealthy = servers.every(s => s.is_online);
+  const anyDown = servers.some(s => !s.is_online);
 
   const MetricCard = ({ title, value, icon: Icon, colorClass, delay }: any) => (
     <div className={`relative overflow-hidden bg-slate-900/40 backdrop-blur-xl border border-slate-700/50 p-6 rounded-2xl shadow-2xl transition-all duration-500 hover:scale-105 hover:border-${colorClass.split('-')[1]}/50 group animate-fade-in`} style={{ animationDelay: delay }}>
@@ -95,17 +102,20 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ authToken }) => {
                  <div className="absolute inset-0 rounded-2xl border-2 border-indigo-400 animate-pulse opacity-50"></div>
                  <ShieldCheck className="w-10 h-10 text-indigo-400" />
               </div>
-              <span className="text-xs text-indigo-300 font-bold mt-3 uppercase tracking-wider">CyberShield Gateway</span>
+              <span className="text-xs text-indigo-300 font-bold mt-3 uppercase tracking-wider">LuminaWAF Gateway</span>
               <span className="text-[10px] text-green-400 px-2 rounded-full bg-green-900/30 font-mono mt-1 border border-green-500/30">ONLINE</span>
            </div>
 
-           {/* Target Backend */}
-           <div className="relative z-10 flex flex-col items-center group">
-              <div className="w-16 h-16 rounded-2xl bg-slate-800 border border-slate-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                 <Server className="w-8 h-8 text-blue-400" />
-              </div>
-              <span className="text-xs text-slate-400 font-bold mt-3 uppercase tracking-wider">Virtual Servers</span>
-           </div>
+            {/* Target Backend */}
+            <div className="relative z-10 flex flex-col items-center group">
+               <div className={`w-16 h-16 rounded-2xl bg-slate-800 border flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform ${anyDown ? 'border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.3)]' : 'border-slate-600'}`}>
+                  <Server className={`w-8 h-8 ${anyDown ? 'text-red-400' : 'text-blue-400'}`} />
+               </div>
+               <span className="text-xs text-slate-400 font-bold mt-3 uppercase tracking-wider">Virtual Servers</span>
+               <span className={`text-[10px] px-2 rounded-full font-mono mt-1 border ${anyDown ? 'bg-red-900/30 text-red-400 border-red-500/30' : 'bg-green-900/30 text-green-400 border-green-500/30'}`}>
+                  {anyDown ? 'PARTIAL OUTAGE' : 'ALL HEALTHY'}
+               </span>
+            </div>
 
            {/* Database */}
            <div className="relative z-10 flex flex-col items-center group">

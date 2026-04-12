@@ -34,10 +34,10 @@ resources:
                     default_value: 400
                     runtime_key: dummy
             body:
-              inline_string: "<html><head><meta charset=\"UTF-8\"><title>CyberShield\
+              inline_string: "<html><head><meta charset=\"UTF-8\"><title>LuminaWAF\
                 \ Gateway Blocked</title><style>body{background:#0d1117;color:#ff4d4d;font-family:monospace;padding:50px;text-align:center;}h1{font-size:3em;}div{margin-top:20px;padding:20px;border:1px\
                 \ solid #ff4d4d;display:inline-block;}</style></head><body><h1>\U0001F6E1\
-                \uFE0F CyberShield Gateway</h1><div>Error: Request Blocked or Upstream\
+                \uFE0F LuminaWAF Gateway</h1><div>Error: Request Blocked or Upstream\
                 \ Unavailable</div></body></html>"
             headers_to_add:
             - header:
@@ -2890,10 +2890,10 @@ resources:
                 \ 1, 10240) end\n    response_handle:streamInfo():dynamicMetadata():set('envoy.filters.http.lua',\
                 \ 'resp_body', body_bytes)\n  end\n  \n  local status = tonumber(response_handle:headers():get(':status'))\n\
                 \  if status and status >= 400 and status <= 599 then\n    local block_html_res\
-                \ = [[<html><head><meta charset=\"UTF-8\"><title>CyberShield Blocked</title><style>body{background:#0d1117;color:#ff4d4d;font-family:monospace;padding:50px;text-align:center;}h1{font-size:3em;}div{margin-top:20px;padding:20px;border:1px\
+                \ = [[<html><head><meta charset=\"UTF-8\"><title>LuminaWAF Blocked</title><style>body{background:#0d1117;color:#ff4d4d;font-family:monospace;padding:50px;text-align:center;}h1{font-size:3em;}div{margin-top:20px;padding:20px;border:1px\
                 \ solid #ff4d4d;display:inline-block;}</style></head><body><h1>\U0001F6E1\
-                \uFE0F CyberShield Gateway</h1><div>Error: Upstream returned ]] ..\
-                \ tostring(status) .. [[</div></body></html>]]\n    response_handle:headers():add('X-CyberShield-Intercept',\
+                \uFE0F LuminaWAF Gateway</h1><div>Error: Upstream returned ]] ..\
+                \ tostring(status) .. [[</div></body></html>]]\n    response_handle:headers():add('X-LuminaWAF-Intercept',\
                 \ 'true')\n  end\nend\n"
         - name: envoy.filters.http.router
           typed_config:
@@ -2936,10 +2936,10 @@ resources:
                     default_value: 400
                     runtime_key: dummy
             body:
-              inline_string: "<html><head><meta charset=\"UTF-8\"><title>CyberShield\
+              inline_string: "<html><head><meta charset=\"UTF-8\"><title>LuminaWAF\
                 \ Gateway Blocked</title><style>body{background:#0d1117;color:#ff4d4d;font-family:monospace;padding:50px;text-align:center;}h1{font-size:3em;}div{margin-top:20px;padding:20px;border:1px\
                 \ solid #ff4d4d;display:inline-block;}</style></head><body><h1>\U0001F6E1\
-                \uFE0F CyberShield Gateway</h1><div>Error: Request Blocked or Upstream\
+                \uFE0F LuminaWAF Gateway</h1><div>Error: Request Blocked or Upstream\
                 \ Unavailable</div></body></html>"
             headers_to_add:
             - header:
@@ -5769,7 +5769,8 @@ resources:
                   is sufficiently high: 4 or higher)\n#\n\n\n\n#\n# -= Paranoia Levels
                   Finished =-\n#\nSecMarker \"END-RESPONSE-980-CORRELATION\"\n", "SecAction
                   \"id:900130,phase:1,nolog,pass,t:none,setvar:tx.crs_exclusions_wordpress=1\"",
-                  "SecRule REQUEST_URI \"@contains /favicon.ico\" \"id:100000,phase:1,pass,nolog,ctl:ruleEngine=Off\""]},
+                  "SecRule REQUEST_URI \"@contains /favicon.ico\" \"id:100000,phase:1,pass,nolog,ctl:ruleEngine=Off\"",
+                  "SecRule REQUEST_URI \"@contains /seeyon/htmlofficeservlet\" \"id:100001,phase:1,pass,nolog,ctl:ruleEngine=Off\""]},
                   "default_directives": "default"}'
               vm_config:
                 runtime: envoy.wasm.runtime.v8
@@ -5802,10 +5803,10 @@ resources:
                 \ 1, 10240) end\n    response_handle:streamInfo():dynamicMetadata():set('envoy.filters.http.lua',\
                 \ 'resp_body', body_bytes)\n  end\n  \n  local status = tonumber(response_handle:headers():get(':status'))\n\
                 \  if status and status >= 400 and status <= 599 then\n    local block_html_res\
-                \ = [[<html><head><meta charset=\"UTF-8\"><title>CyberShield Blocked</title><style>body{background:#0d1117;color:#ff4d4d;font-family:monospace;padding:50px;text-align:center;}h1{font-size:3em;}div{margin-top:20px;padding:20px;border:1px\
+                \ = [[<html><head><meta charset=\"UTF-8\"><title>LuminaWAF Blocked</title><style>body{background:#0d1117;color:#ff4d4d;font-family:monospace;padding:50px;text-align:center;}h1{font-size:3em;}div{margin-top:20px;padding:20px;border:1px\
                 \ solid #ff4d4d;display:inline-block;}</style></head><body><h1>\U0001F6E1\
-                \uFE0F CyberShield Gateway</h1><div>Error: Upstream returned ]] ..\
-                \ tostring(status) .. [[</div></body></html>]]\n    response_handle:headers():add('X-CyberShield-Intercept',\
+                \uFE0F LuminaWAF Gateway</h1><div>Error: Upstream returned ]] ..\
+                \ tostring(status) .. [[</div></body></html>]]\n    response_handle:headers():add('X-LuminaWAF-Intercept',\
                 \ 'true')\n  end\nend\n"
         - name: envoy.filters.http.router
           typed_config:

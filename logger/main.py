@@ -142,7 +142,7 @@ def process_log_entry(entry):
                 s_port = int(syslog_port[0]) if syslog_port and syslog_port[0] else 514
                 import socket
                 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                msg = f"<13>{datetime.utcnow().strftime('%b %d %H:%M:%S')} cybershield-waf: {json.dumps(entry)}"
+                msg = f"<13>{datetime.utcnow().strftime('%b %d %H:%M:%S')} luminawaf-waf: {json.dumps(entry)}"
                 sock.sendto(msg.encode('utf-8'), (syslog_host[0], s_port))
                 sock.close()
         except:
@@ -238,7 +238,7 @@ def report_worker():
                         <body style="background-color: #0f172a; color: #f8fafc; font-family: sans-serif; padding: 40px;">
                             <div style="max-width: 600px; margin: 0 auto; background-color: #1e293b; border: 1px solid #334155; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);">
                                 <div style="background-color: #4f46e5; padding: 30px; text-align: center;">
-                                    <h1 style="margin: 0; font-size: 24px; letter-spacing: 2px;">CYBERSHIELD SECURITY DIGEST</h1>
+                                    <h1 style="margin: 0; font-size: 24px; letter-spacing: 2px;">LUMINAWAF SECURITY DIGEST</h1>
                                     <p style="margin: 5px 0 0; opacity: 0.8; font-size: 12px; text-transform: uppercase;">{freq.capitalize()} Infrastructure Report</p>
                                 </div>
                                 <div style="padding: 30px;">

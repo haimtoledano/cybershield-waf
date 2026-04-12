@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from enum import Enum as EEnum
 from typing import Optional, List
+from datetime import datetime
 
 class WAFMode(str, EEnum):
     Blocking = 'Blocking'
@@ -20,6 +21,8 @@ class VirtualServerBase(BaseModel):
     log_retention_days: int = 7
     rate_limit_enabled: bool = False
     rate_limit_rpm: int = 100
+    is_online: bool = True
+    last_check: Optional[datetime] = None
 
 class VirtualServerCreate(VirtualServerBase):
     profiles: List[str] = []
@@ -80,7 +83,7 @@ class VirtualServerWithExclusions(VirtualServerRead):
     class Config:
         from_attributes = True
 
-from datetime import datetime
+
 
 class GlobalSettingsBase(BaseModel):
     setting_key: str

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Server, Activity, PlusCircle, X, Trash2, Shield, ShieldCheck, Terminal, ShieldAlert, ChevronDown, ChevronUp, AlertOctagon, LayoutTemplate, Cloud, Code, User, Users, Database, LogOut, Settings, ClipboardList, LayoutDashboard } from 'lucide-react';
+import { Server, Activity, PlusCircle, X, Trash2, Shield, ShieldCheck, Terminal, ShieldAlert, ChevronDown, ChevronUp, AlertOctagon, LayoutTemplate, Cloud, Code, User, Users, Database, LogOut, Settings, ClipboardList, LayoutDashboard, Download } from 'lucide-react';
 import { LoginView, MFASetupView } from './AuthViews';
 import UsersTab from './UsersTab';
 import IPRulesTab from './IPRulesTab';
@@ -311,6 +311,27 @@ const App: React.FC = () => {
     }
   };
 
+  const downloadCSV = () => {
+    const headers = ['Timestamp', 'Client IP', 'Method', 'Server', 'Path', 'Status', 'Block Reason'];
+    const rows = logs.map(log => [
+      log.time,
+      log.client_ip,
+      log.method,
+      log.server,
+      `"${(log.path || '').replace(/"/g, '""')}"`,
+      log.status,
+      `"${(log.block_reason || '').replace(/"/g, '""')}"`
+    ]);
+    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `luminawaf_logs_${new Date().toISOString().split('T')[0]}.csv`);
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   if (!authToken) {
       return <LoginView onLogin={handleLogin} mfaRequired={needsMfaCode} errorMsg={loginError} />;
   }
@@ -330,8 +351,8 @@ const App: React.FC = () => {
     <div className="flex flex-col items-center min-h-screen p-6 md:p-10 bg-gradient-to-br from-slate-900 to-indigo-950 relative overflow-x-hidden">
       {/* Background Watermark */}
       <div className="fixed inset-0 pointer-events-none flex flex-col justify-center items-center opacity-[0.03] z-0 select-none">
-         <img src="/cybershield_logo.png" alt="Watermark" className="h-64 w-64 md:h-96 md:w-96 object-contain" />
-         <h1 className="text-6xl md:text-[10rem] font-black tracking-widest text-white mt-10">CyberShield</h1>
+         <img src="/luminawaf_logo.png" alt="Watermark" className="h-64 w-64 md:h-96 md:w-96 object-contain" />
+         <h1 className="text-6xl md:text-[10rem] font-black tracking-widest text-white mt-10">LuminaWAF</h1>
       </div>
 
       <div className="flex justify-center mb-8 w-full border-b border-indigo-500/30 pb-6 pt-2 relative z-10 overflow-hidden">
@@ -396,13 +417,13 @@ const App: React.FC = () => {
                       <div className={`p-4 rounded-xl mr-5 ${vs.active ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
                         <Server className="w-8 h-8 " />
                       </div>
-                      <div>
-                        <h2 className="text-2xl font-semibold text-white tracking-wide">{vs.name}</h2>
                         <div className="flex space-x-4 mt-2 text-sm text-slate-400">
                           <span className="flex items-center"><Activity className="w-4 h-4 mr-1 text-blue-400"/> Port {vs.ingress_port}</span>
-                          <span>→ {vs.backend_target}</span>
+                          <span className={vs.is_online ? "" : "text-red-500 font-bold flex items-center"}>
+                            → {vs.backend_target}
+                            {!vs.is_online && <AlertOctagon className="w-4 h-4 ml-2 animate-pulse" />}
+                          </span>
                         </div>
-                      </div>
                     </div>
                     <div className="flex flex-col items-end">
                       <div className="flex space-x-2">
@@ -457,6 +478,10 @@ const App: React.FC = () => {
                        <option value="all">All Servers</option>
                        {servers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                     </select>
+                    <button onClick={downloadCSV} className="bg-indigo-600 hover:bg-indigo-500 text-white p-1.5 rounded border border-indigo-500/50 flex items-center transition shadow-lg shadow-indigo-500/20" title="Export current view to CSV">
+                       <Download className="w-4 h-4 mr-1" />
+                       <span className="text-[10px] uppercase font-bold pr-1">CSV</span>
+                    </button>
                  </div>
              </div>
              <div className="flex text-slate-400 border-b border-slate-700 pb-2 mb-2 font-bold px-2">

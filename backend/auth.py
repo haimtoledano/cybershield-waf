@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from database import get_db, User, UserRole
 
 # --- Configuration ---
-SECRET_KEY = os.environ.get("SECRET_KEY", "cybershield_super_secret_key_123")
+SECRET_KEY = os.environ.get("SECRET_KEY", "luminawaf_super_secret_key_123")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 # 1 Day
 
@@ -94,7 +94,7 @@ def get_mfa_setup_uri(current_user: User = Depends(get_current_user), db: Sessio
         db.commit()
 
     uri = pyotp.totp.TOTP(current_user.mfa_secret).provisioning_uri(
-        name=current_user.username, issuer_name="CyberShield WAF"
+        name=current_user.username, issuer_name="LuminaWAF"
     )
     return {"uri": uri, "secret": current_user.mfa_secret}
 
