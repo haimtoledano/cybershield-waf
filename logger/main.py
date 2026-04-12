@@ -73,6 +73,12 @@ def tail_logs():
             if not line:
                 continue
                 
+            # Envoy JSON log might have bare '-' for missing fields (invalid JSON).
+            # We replace them with 'null' or empty strings to make it valid JSON.
+            # Example: "body": -  becomes "body": null
+            if ': -' in line:
+                line = line.replace(': -', ': null')
+                
             try:
                 log_entry = json.loads(line)
                 process_log_entry(log_entry)

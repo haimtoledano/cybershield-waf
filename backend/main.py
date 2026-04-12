@@ -353,6 +353,9 @@ def generate_coraza_config(server, whitelisted_ips=None):
 def generate_waf_lua(server):
     lua_script = "-- Payload Logger & Rate Limiter Module\n"
     lua_script += "function envoy_on_request(request_handle)\n"
+    lua_script += "  -- Ensure metadata keys exist to avoid invalid JSON in logs (Envoy renders missing as '-')\n"
+    lua_script += "  request_handle:streamInfo():dynamicMetadata():set('envoy.filters.http.lua', 'req_body', '')\n"
+    lua_script += "  \n"
     
     if getattr(server, "rate_limit_enabled", False):
         lua_script += f"  local rpm_limit = {server.rate_limit_rpm}\n"
@@ -382,6 +385,9 @@ def generate_waf_lua(server):
     
     # Intercept upstream fast fail 404/500 to show our page
     lua_script += "function envoy_on_response(response_handle)\n"
+    lua_script += "  -- Ensure metadata keys exist\n"
+    lua_script += "  response_handle:streamInfo():dynamicMetadata():set('envoy.filters.http.lua', 'resp_body', '')\n"
+    lua_script += "  \n"
     lua_script += "  local resp_body = response_handle:body()\n"
     lua_script += "  if resp_body then\n"
     lua_script += "    local body_bytes = resp_body:getBytes(0, resp_body:length())\n"
