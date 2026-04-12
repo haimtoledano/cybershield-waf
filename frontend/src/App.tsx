@@ -341,21 +341,24 @@ const App: React.FC = () => {
   }
 
   const buttonStyle = (isActive: boolean) => 
-    `flex items-center px-3 py-2 rounded-xl text-xs md:text-[13px] font-bold transition-all shadow-md backdrop-blur-sm border ${
-      isActive 
-      ? 'bg-indigo-600 border-indigo-500/50 text-white shadow-indigo-500/30 scale-105 z-10' 
-      : 'bg-slate-800/60 border-slate-700/50 text-slate-400 hover:text-white hover:bg-slate-700 hover:scale-105'
-    }`;
+    `nav-hud-item ${isActive ? 'active' : 'text-slate-400 hover:text-white'}`;
 
   return (
-    <div className="flex flex-col items-center min-h-screen p-6 md:p-10 bg-gradient-to-br from-slate-900 to-indigo-950 relative overflow-x-hidden">
+    <div className="flex flex-col items-center min-h-screen p-6 md:p-10 relative overflow-x-hidden">
+      {/* Premium Ambient Aura Background */}
+      <div className="ambient-aura">
+        <div className="aura-blob aura-1" />
+        <div className="aura-blob aura-2" />
+        <div className="aura-blob aura-3" />
+      </div>
+
       {/* Background Watermark */}
-      <div className="fixed inset-0 pointer-events-none flex flex-col justify-center items-center opacity-[0.03] z-0 select-none">
+      <div className="fixed inset-0 pointer-events-none flex flex-col justify-center items-center opacity-[0.02] z-0 select-none">
          <img src="/luminawaf_logo.png" alt="Watermark" className="h-64 w-64 md:h-96 md:w-96 object-contain" />
          <h1 className="text-6xl md:text-[10rem] font-black tracking-widest text-white mt-10">LuminaWAF</h1>
       </div>
 
-      <div className="flex justify-center mb-8 w-full border-b border-indigo-500/30 pb-6 pt-2 relative z-10 overflow-hidden">
+      <div className="flex justify-center mb-8 w-full border-b border-white/10 pb-6 pt-2 relative z-10">
         <div className="flex space-x-2 overflow-x-auto whitespace-nowrap justify-start md:justify-center w-full pb-2 px-2 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
           <button onClick={() => setActiveTab('dashboard')} className={buttonStyle(activeTab === 'dashboard')}>
             <LayoutDashboard className="w-4 h-4 mr-2" /> Overview
