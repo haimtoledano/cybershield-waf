@@ -7,12 +7,13 @@ module.exports = {
     extend: {
       colors: {
         lumina: {
-          900: '#020617',
-          800: '#0f172a',
-          700: '#1e293b',
+          900: '#0c1222',
+          800: '#151e35',
+          700: '#1e2d4a',
+          600: '#2a3c5e',
           cyan: '#22d3ee',
-          indigo: '#6366f1',
-          rose: '#f43f5e',
+          indigo: '#818cf8',
+          rose: '#fb7185',
         }
       },
       animation: {
@@ -40,9 +41,9 @@ module.exports = {
         }
       },
       boxShadow: {
-        'glass': '0 8px 32px 0 rgba(0, 0, 0, 0.37)',
-        'glow-cyan': '0 0 15px rgba(34, 211, 238, 0.4)',
-        'glow-indigo': '0 0 15px rgba(99, 102, 241, 0.4)',
+        'glass': '0 8px 32px 0 rgba(0, 0, 0, 0.25)',
+        'glow-cyan': '0 0 20px rgba(34, 211, 238, 0.5)',
+        'glow-indigo': '0 0 20px rgba(129, 140, 248, 0.5)',
       }
     },
   },
