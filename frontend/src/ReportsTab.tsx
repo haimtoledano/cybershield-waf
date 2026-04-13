@@ -9,6 +9,7 @@ import {
   BellRing,
   Server
 } from 'lucide-react';
+import { api } from './api';
 
 interface ReportsTabProps {
   authToken: string;
@@ -23,9 +24,7 @@ const ReportsTab: React.FC<ReportsTabProps> = ({ authToken }) => {
 
   const fetchReport = async () => {
     try {
-      const res = await fetch(`http://localhost:8555/api/reports/preview?days=${days}`, {
-        headers: { 'Authorization': `Bearer ${authToken}` }
-      });
+      const res = await api.get(`/api/reports/preview`, { params: { days: days.toString() } });
       if (res.ok) setReportData(await res.json());
     } catch (e) {
       console.error(e);
@@ -34,9 +33,7 @@ const ReportsTab: React.FC<ReportsTabProps> = ({ authToken }) => {
 
   const fetchSubscriptions = async () => {
     try {
-      const res = await fetch(`http://localhost:8555/api/reports/subscriptions`, {
-        headers: { 'Authorization': `Bearer ${authToken}` }
-      });
+      const res = await api.get(`/api/reports/subscriptions`);
       if (res.ok) setSubscriptions(await res.json());
     } catch (e) {
       console.error(e);
@@ -45,9 +42,7 @@ const ReportsTab: React.FC<ReportsTabProps> = ({ authToken }) => {
 
   const fetchServers = async () => {
     try {
-      const res = await fetch(`http://localhost:8555/api/virtual-servers/`, {
-        headers: { 'Authorization': `Bearer ${authToken}` }
-      });
+      const res = await api.get(`/api/virtual-servers/`);
       if (res.ok) setServers(await res.json());
     } catch (e) {
       console.error(e);
@@ -63,19 +58,9 @@ const ReportsTab: React.FC<ReportsTabProps> = ({ authToken }) => {
     const existing = subscriptions.find(s => s.frequency === frequency);
     try {
       if (existing) {
-        await fetch(`http://localhost:8555/api/reports/subscriptions/${existing.id}`, {
-          method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${authToken}` }
-        });
+        await api.delete(`/api/reports/subscriptions/${existing.id}`);
       } else {
-        await fetch(`http://localhost:8555/api/reports/subscriptions`, {
-          method: 'POST',
-          headers: { 
-            'Authorization': `Bearer ${authToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ frequency })
-        });
+        await api.post(`/api/reports/subscriptions`, { frequency });
       }
       fetchSubscriptions();
     } catch (e) {

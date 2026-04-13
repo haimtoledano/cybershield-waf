@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { ShieldCheck, Activity, Database, Server, Cpu, Globe, ArrowRight, ShieldAlert, Zap } from 'lucide-react';
 
+import { api } from './api';
+
 interface DashboardTabProps {
   authToken: string;
 }
@@ -12,10 +14,9 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ authToken }) => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const headers = { 'Authorization': `Bearer ${authToken}` };
         const [statsRes, serversRes] = await Promise.all([
-          fetch('http://localhost:8555/api/stats', { headers }),
-          fetch('http://localhost:8555/api/virtual-servers/', { headers })
+          api.get('/api/stats'),
+          api.get('/api/virtual-servers/')
         ]);
         if (statsRes.ok) setStats(await statsRes.json());
         if (serversRes.ok) setServers(await serversRes.json());

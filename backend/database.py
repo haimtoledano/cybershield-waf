@@ -61,6 +61,9 @@ class VirtualServer(Base):
     log_retention_days = Column(Integer, default=7)
     rate_limit_enabled = Column(Boolean, default=False)
     rate_limit_rpm = Column(Integer, default=100)
+    attack_mitigation_enabled = Column(Boolean, default=False)
+    attack_threshold = Column(Integer, default=5)
+    attack_ttl_minutes = Column(Integer, default=60)
     is_online = Column(Boolean, default=True)
     last_check = Column(DateTime, nullable=True)
 

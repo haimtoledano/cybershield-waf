@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Users, Plus, Trash2, Loader2, Edit2, X, ShieldAlert } from 'lucide-react';
+import { api } from './api';
 
 interface User {
   id: string;
@@ -28,15 +29,11 @@ const UsersTab: React.FC<Props> = ({ authToken }) => {
   const [editRole, setEditRole] = useState<'admin' | 'viewer'>('viewer');
   const [resetMfaUri, setResetMfaUri] = useState<string | null>(null);
 
-  const API_BASE_URL = 'http://localhost:8555/api/users';
-
   const fetchUsers = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch(API_BASE_URL, {
-        headers: { Authorization: `Bearer ${authToken}` },
-      });
+      const response = await api.get('/api/users');
       if (!response.ok) throw new Error('Failed to fetch');
       const data = await response.json();
       setUsers(data);
@@ -45,7 +42,7 @@ const UsersTab: React.FC<Props> = ({ authToken }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [authToken]);
+  }, []);
 
   useEffect(() => {
     fetchUsers();
@@ -55,10 +52,7 @@ const UsersTab: React.FC<Props> = ({ authToken }) => {
     if (!window.confirm(`Are you sure you want to delete the user "${username}"?`)) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${authToken}` },
-      });
+      const response = await api.delete(`/api/users/${id}`);
       if (!response.ok) {
           const err = await response.json();
           throw new Error(err.detail || 'Delete failed');
@@ -79,13 +73,11 @@ const UsersTab: React.FC<Props> = ({ authToken }) => {
     }
 
     try {
-      const response = await fetch(API_BASE_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${authToken}`,
-        },
-        body: JSON.stringify({ username: newUsername, password: newPassword, role: newRole, email: newEmail })
+      const response = await api.post('/api/users', { 
+        username: newUsername, 
+        password: newPassword, 
+        role: newRole, 
+        email: newEmail 
       });
       
       if (!response.ok) {
@@ -114,13 +106,9 @@ const UsersTab: React.FC<Props> = ({ authToken }) => {
     e.preventDefault();
     if (!editingUser) return;
     try {
-      const response = await fetch(`${API_BASE_URL}/${editingUser.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${authToken}`,
-        },
-        body: JSON.stringify({ email: editEmail, role: editRole })
+      const response = await api.put(`/api/users/${editingUser.id}`, { 
+        email: editEmail, 
+        role: editRole 
       });
       if (!response.ok) {
           const err = await response.json();
@@ -138,10 +126,7 @@ const UsersTab: React.FC<Props> = ({ authToken }) => {
     if (!editingUser) return;
     if (!window.confirm("This will instantly invalidate the user's current MFA codes. Proceed?")) return;
     try {
-      const response = await fetch(`${API_BASE_URL}/${editingUser.id}/mfa/reset`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${authToken}` },
-      });
+      const response = await api.post(`/api/users/${editingUser.id}/mfa/reset`);
       if (!response.ok) {
           const err = await response.json();
           throw new Error(err.detail || 'Reset failed');

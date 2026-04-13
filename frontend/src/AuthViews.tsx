@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { Mail, Key, Loader2, AlertTriangle } from 'lucide-react';
+import { Mail, Key, Loader2, AlertTriangle, Shield } from 'lucide-react';
 import { QRCodeCanvas } from 'qrcode.react';
 
 interface LoginViewProps {
@@ -44,9 +44,11 @@ export const LoginView: React.FC<LoginViewProps> = ({ mfaRequired, errorMsg, onL
             </label>
             <input
               type="text"
+              name="username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               className="w-full p-3 bg-slate-900 border border-slate-700 text-white rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+              autoComplete="username"
               required
             />
           </div>
@@ -57,10 +59,12 @@ export const LoginView: React.FC<LoginViewProps> = ({ mfaRequired, errorMsg, onL
             </label>
             <input
               type="password"
+              name="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full p-3 bg-slate-900 border border-slate-700 text-white rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
               placeholder="Min 4 characters"
+              autoComplete="current-password"
               required
             />
           </div>
@@ -92,11 +96,11 @@ export const LoginView: React.FC<LoginViewProps> = ({ mfaRequired, errorMsg, onL
           <button
             type="submit"
             disabled={isLoading}
-            className={`w-full flex justify-center items-center py-3 px-4 rounded-lg font-medium ${
-              isLoading ? 'bg-indigo-500/50 cursor-not-allowed text-white' : 'bg-indigo-600 hover:bg-indigo-500 text-white'
+            className={`w-full flex justify-center items-center py-3 px-4 rounded-lg font-medium transition-all ${
+              isLoading ? 'bg-indigo-500/50 cursor-not-allowed text-white' : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/20'
             }`}
           >
-            {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : 'Login'}
+            {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : 'Sign In to Control Plane'}
           </button>
         </form>
       </div>

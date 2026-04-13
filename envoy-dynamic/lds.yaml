@@ -5783,9 +5783,7 @@ resources:
                   -= Paranoia Level 4 =- (apply only when tx.detection_paranoia_level
                   is sufficiently high: 4 or higher)\n#\n\n\n\n#\n# -= Paranoia Levels
                   Finished =-\n#\nSecMarker \"END-RESPONSE-980-CORRELATION\"\n", "SecAction
-                  \"id:900130,phase:1,nolog,pass,t:none,setvar:tx.crs_exclusions_wordpress=1\"",
-                  "SecRule REQUEST_URI \"@contains /favicon.ico\" \"id:100000,phase:1,pass,nolog,ctl:ruleEngine=Off\"",
-                  "SecRule REQUEST_URI \"@contains /seeyon/htmlofficeservlet\" \"id:100001,phase:1,pass,nolog,ctl:ruleEngine=Off\""]},
+                  \"id:900130,phase:1,nolog,pass,t:none,setvar:tx.crs_exclusions_wordpress=1\""]},
                   "default_directives": "default"}'
               vm_config:
                 runtime: envoy.wasm.runtime.v8
@@ -5800,13 +5798,12 @@ resources:
               inline_string: "-- Payload Logger & Rate Limiter Module\nfunction envoy_on_request(request_handle)\n\
                 \  -- Ensure metadata keys exist to avoid invalid JSON in logs (Envoy\
                 \ renders missing as '-')\n  request_handle:streamInfo():dynamicMetadata():set('envoy.filters.http.lua',\
-                \ 'req_body', '')\n  \n  local rpm_limit = 100\n  local ip_full =\
-                \ request_handle:streamInfo():downstreamDirectRemoteAddress()\n  if\
-                \ not ip_full or ip_full == '' then ip_full = 'unknown' end\n  local\
-                \ ip = string.match(ip_full, '^([^:]+)') or ip_full\n  if not _G.rl_counter\
-                \ then _G.rl_counter = {} end\n  if not _G.rl_reset then _G.rl_reset\
-                \ = {} end\n  local now = os.time()\n  if not _G.rl_reset[ip] or now\
-                \ > _G.rl_reset[ip] then\n    _G.rl_counter[ip] = 0\n    _G.rl_reset[ip]\
+                \ 'req_body', '')\n  \n  local rpm_limit = 20\n  local ip_full = request_handle:streamInfo():downstreamDirectRemoteAddress()\n\
+                \  if not ip_full or ip_full == '' then ip_full = 'unknown' end\n\
+                \  local ip = string.match(ip_full, '^([^:]+)') or ip_full\n  if not\
+                \ _G.rl_counter then _G.rl_counter = {} end\n  if not _G.rl_reset\
+                \ then _G.rl_reset = {} end\n  local now = os.time()\n  if not _G.rl_reset[ip]\
+                \ or now > _G.rl_reset[ip] then\n    _G.rl_counter[ip] = 0\n    _G.rl_reset[ip]\
                 \ = now + 60\n  end\n  _G.rl_counter[ip] = _G.rl_counter[ip] + 1\n\
                 \  if _G.rl_counter[ip] > rpm_limit then\n     request_handle:respond({[':status']\
                 \ = '429', ['Content-Type'] = 'text/plain'}, 'Rate Limit Exceeded')\n\

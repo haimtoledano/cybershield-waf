@@ -197,6 +197,53 @@ def process_log_entry(entry):
                             requests.post("http://waf-backend:8000/api/internal/send-email", json={"vs_id": vs_id}, timeout=3)
                         except: pass
 
+        # Handle Applicative Attack Blacklisting
+        if status_code in [403, 406]:
+            block_reason = entry.get("details", "")
+            # Do not count RBAC blocks as "applicative attacks" since they are just enforcement of an existing ban
+            if not block_reason or "rbac" not in block_reason.lower():
+                ip = entry.get("client_ip")
+                if ip:
+                    # Get threshold, TTL and enabled status from the virtual server directly
+                    vs_settings = db.execute(text("SELECT attack_threshold, attack_ttl_minutes, attack_mitigation_enabled FROM virtual_servers WHERE id = :vs_id"), {"vs_id": vs_id}).fetchone()
+                    try:
+                        threshold = int(vs_settings[0]) if vs_settings and vs_settings[0] else 5
+                        ttl = int(vs_settings[1]) if vs_settings and vs_settings[1] else 60
+                        enabled = vs_settings[2] if vs_settings else False
+                    except:
+                        threshold = 5
+                        ttl = 60
+                        enabled = False
+
+                    if not enabled:
+                        return
+
+                    # Check hit count within last 5 minutes
+                    time_window = datetime.utcnow() - timedelta(minutes=5)
+                    hit_count = db.execute(text("""
+                        SELECT count(*) FROM access_logs 
+                        WHERE client_ip = :ip AND status_code IN (403, 406) AND timestamp > :start_time
+                        AND (block_reason IS NULL OR block_reason NOT LIKE '%rbac%')
+                    """), {"ip": ip, "start_time": time_window}).scalar()
+
+                    if hit_count and hit_count >= threshold:
+                        expires_at = datetime.utcnow() + timedelta(minutes=ttl)
+                        import uuid
+
+                        # Check if it's already blacklisted to avoid unnecessary updates
+                        existing = db.execute(text("SELECT id FROM ip_rules WHERE ip_address = :ip AND rule_type = 'Blacklist'"), {"ip": ip}).fetchone()
+                        
+                        if not existing:
+                            db.execute(text("""
+                            INSERT INTO ip_rules (id, ip_address, rule_type, notes, created_at, expires_at)
+                            VALUES (:id, :ip, 'Blacklist', 'Auto-blocked Applicative Attack', :now, :expires_at)
+                            """), {"id": str(uuid.uuid4()), "ip": ip, "now": datetime.utcnow(), "expires_at": expires_at})
+                            db.commit()
+
+                            import requests
+                            try: requests.post("http://waf-backend:8000/api/internal/trigger-update", timeout=1)
+                            except: pass
+
 def report_worker():
     while True:
         try:

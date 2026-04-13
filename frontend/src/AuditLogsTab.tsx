@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ClipboardList, ShieldAlert, FileText } from 'lucide-react';
+import { api } from './api';
 
 interface AuditLogsTabProps {
   authToken: string;
@@ -11,9 +12,7 @@ const AuditLogsTab: React.FC<AuditLogsTabProps> = ({ authToken }) => {
 
   const fetchLogs = async () => {
     try {
-      const res = await fetch('http://localhost:8555/api/audit-logs', {
-        headers: { 'Authorization': `Bearer ${authToken}` }
-      });
+      const res = await api.get('/api/audit-logs');
       if (res.ok) {
         setLogs(await res.json());
       }

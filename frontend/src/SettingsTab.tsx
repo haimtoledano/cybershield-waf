@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Settings, Save, Server, Globe, Mail } from 'lucide-react';
+import { api } from './api';
 
 interface SettingsTabProps {
   authToken: string;
@@ -12,9 +13,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ authToken }) => {
 
   const fetchSettings = async () => {
     try {
-      const res = await fetch('http://localhost:8555/api/settings', {
-        headers: { 'Authorization': `Bearer ${authToken}` }
-      });
+      const res = await api.get('/api/settings');
       if (res.ok) {
         const data = await res.json();
         const settingsMap: Record<string, string> = {};
@@ -46,11 +45,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ authToken }) => {
     setLoading(true);
     setSaveStatus(null);
     try {
-      const res = await fetch('http://localhost:8555/api/settings', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
-        body: JSON.stringify(settings)
-      });
+      const res = await api.put('/api/settings', settings);
       if (!res.ok) throw new Error("Failed to save settings");
       setSaveStatus("success");
       setTimeout(() => setSaveStatus(null), 3000);
@@ -79,13 +74,13 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ authToken }) => {
              <h3 className="text-lg font-bold text-white mb-4 flex items-center border-b border-slate-700 pb-2">
                 <Globe className="w-5 h-5 mr-2 text-indigo-400" /> Rate Limiting & Threat Intelligence
              </h3>
-             <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-1">Blacklist TTL (Minutes)</label>
-                  <input type="number" name="ddos_blacklist_ttl_minutes" min="1" max="1440" value={settings.ddos_blacklist_ttl_minutes || ''} onChange={handleChange} className="w-full bg-slate-900 border border-slate-600 text-white p-3 rounded-lg outline-none focus:border-indigo-500" placeholder="e.g. 10" />
-                  <p className="text-slate-500 text-xs mt-2">Duration an IP remains in the Blacklist after being blocked by DDoS rate limiters.</p>
-                </div>
-             </div>
+              <div className="grid grid-cols-2 gap-6">
+                 <div>
+                   <label className="block text-sm font-medium text-slate-300 mb-1">Blacklist TTL (Minutes)</label>
+                   <input type="number" name="ddos_blacklist_ttl_minutes" min="1" max="1440" value={settings.ddos_blacklist_ttl_minutes || ''} onChange={handleChange} className="w-full bg-slate-900 border border-slate-600 text-white p-3 rounded-lg outline-none focus:border-indigo-500" placeholder="e.g. 10" />
+                   <p className="text-slate-500 text-xs mt-2">Duration an IP remains in the Blacklist after being blocked by DDoS rate limiters.</p>
+                 </div>
+              </div>
           </div>
 
           {/* Syslog Forwarding */}

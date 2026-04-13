@@ -21,6 +21,9 @@ class VirtualServerBase(BaseModel):
     log_retention_days: int = 7
     rate_limit_enabled: bool = False
     rate_limit_rpm: int = 100
+    attack_mitigation_enabled: bool = False
+    attack_threshold: int = 5
+    attack_ttl_minutes: int = 60
     is_online: bool = True
     last_check: Optional[datetime] = None
 
@@ -36,6 +39,9 @@ class VirtualServerUpdate(BaseModel):
     log_retention_days: Optional[int] = None
     rate_limit_enabled: Optional[bool] = None
     rate_limit_rpm: Optional[int] = None
+    attack_mitigation_enabled: Optional[bool] = None
+    attack_threshold: Optional[int] = None
+    attack_ttl_minutes: Optional[int] = None
     profiles: Optional[List[str]] = None
 
 class ProfileRead(BaseModel):

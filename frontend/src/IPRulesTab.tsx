@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ShieldAlert, Plus, Trash2, Loader2, Info } from 'lucide-react';
+import { api } from './api';
 
 interface IPRule {
   id: string;
@@ -23,14 +24,10 @@ const IPRulesTab: React.FC<Props> = ({ authToken }) => {
   const [newNotes, setNewNotes] = useState('');
   const [message, setMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
 
-  const API_BASE_URL = 'http://localhost:8555/api/ip-rules';
-
   const fetchRules = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(API_BASE_URL, {
-        headers: { Authorization: `Bearer ${authToken}` }
-      });
+      const response = await api.get('/api/ip-rules');
       if (!response.ok) throw new Error('Failed to fetch IP RULES');
       const data = await response.json();
       setRules(data);
@@ -40,7 +37,7 @@ const IPRulesTab: React.FC<Props> = ({ authToken }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [authToken]);
+  }, []);
 
   useEffect(() => {
     fetchRules();
@@ -51,14 +48,7 @@ const IPRulesTab: React.FC<Props> = ({ authToken }) => {
     setMessage(null);
     
     try {
-      const response = await fetch(API_BASE_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${authToken}`,
-        },
-        body: JSON.stringify({ ip_address: newIp, rule_type: newType, notes: newNotes })
-      });
+      const response = await api.post('/api/ip-rules', { ip_address: newIp, rule_type: newType, notes: newNotes });
       
       if (!response.ok) {
           const err = await response.json();
@@ -80,10 +70,7 @@ const IPRulesTab: React.FC<Props> = ({ authToken }) => {
   const handleDeleteRule = async (id: string, ip: string) => {
     if (!window.confirm(`Are you sure you want to delete the rule for ${ip}?`)) return;
     try {
-      const response = await fetch(`${API_BASE_URL}/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${authToken}` }
-      });
+      const response = await api.delete(`/api/ip-rules/${id}`);
       if (!response.ok) throw new Error('Delete failed');
       fetchRules();
       setMessage({ text: `Rule for ${ip} deleted successfully.`, type: 'success' });

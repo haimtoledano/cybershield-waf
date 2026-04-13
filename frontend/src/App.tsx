@@ -8,6 +8,7 @@ import AuditLogsTab from './AuditLogsTab';
 import DashboardTab from './DashboardTab';
 import ReportsTab from './ReportsTab';
 import { BarChart3 } from 'lucide-react';
+import { api } from './api';
 
 const ruleCategories = [
   { id: 'Protocol-Enforcement', label: 'Protocol Enforcement', desc: 'Enforces strict HTTP protocol standards.', icon: ShieldCheck },
@@ -62,22 +63,19 @@ const App: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [searchTxt, setSearchTxt] = useState<string>('');
 
+  useEffect(() => {
+    api.setToken(authToken);
+    api.setOnAuthError(handleLogout);
+  }, [authToken]);
+
   const [newServer, setNewServer] = useState({
     name: '', ingress_port: 0, backend_target: '', waf_mode: 'Disabled', log_retention_days: 7, profiles: []
   });
   const [activeSettingsTab, setActiveSettingsTab] = useState<'rules' | 'apps' | 'exclusions' | 'headers' | 'ddos'>('rules');
   const [newHeader, setNewHeader] = useState({ direction: 'Response', header_key: '', header_value: '' });
 
-  const fetchWithAuth = async (url: string, options: any = {}) => {
-    const headers = { ...options.headers, 'Authorization': `Bearer ${authToken}` };
-    const res = await fetch(url, { ...options, headers });
-    if (res.status === 401) {
-      handleLogout();
-    }
-    return res;
-  };
-
   const handleLogout = () => {
+      api.setToken(null);
       setAuthToken(null);
       setCurrentUser(null);
       setMfaSetupUri(null);
@@ -88,10 +86,7 @@ const App: React.FC = () => {
   const handleLogin = async (user: string, pass: string, mfaCode?: string) => {
     try {
       setLoginError(null);
-      const res = await fetch('http://localhost:8555/api/auth/login', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: user, password: pass, mfa_code: mfaCode })
-      });
+      const res = await api.post('/api/auth/login', { username: user, password: pass, mfa_code: mfaCode });
       const data = await res.json();
       if (!res.ok) {
          if (data.detail === "MFA_REQUIRED") {
@@ -102,15 +97,15 @@ const App: React.FC = () => {
          throw new Error(data.detail || "Login failed");
       }
       
+      api.setToken(data.access_token);
       setAuthToken(data.access_token);
       setCurrentUser(data.user);
       localStorage.setItem('waf_token', data.access_token);
       localStorage.setItem('waf_user', JSON.stringify(data.user));
 
       if (data.mfa_setup_needed) {
-         const mfaRes = await fetch('http://localhost:8555/api/auth/mfa/setup', {
-            headers: { 'Authorization': `Bearer ${data.access_token}` }
-         });
+         api.setToken(data.access_token);
+         const mfaRes = await api.get('/api/auth/mfa/setup');
          const mfaData = await mfaRes.json();
          setMfaSetupUri(mfaData.uri);
       }
@@ -121,10 +116,7 @@ const App: React.FC = () => {
 
   const handleMfaVerify = async (code: string) => {
     try {
-      const res = await fetch('http://localhost:8555/api/auth/mfa/verify', {
-        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
-        body: JSON.stringify({ code })
-      });
+      const res = await api.post('/api/auth/mfa/verify', { code });
       if (!res.ok) {
          const err = await res.json();
          throw new Error(err.detail || "MFA Verify Failed");
@@ -137,7 +129,7 @@ const App: React.FC = () => {
 
   const fetchServers = () => {
     if (!authToken || mfaSetupUri) return;
-    fetchWithAuth('http://localhost:8555/api/virtual-servers/')
+    api.get('/api/virtual-servers/')
       .then(res => res.json())
       .then(data => { if(Array.isArray(data)) setServers(data) })
       .catch(err => console.error(err));
@@ -145,14 +137,14 @@ const App: React.FC = () => {
 
   const fetchLogs = () => {
     if (!authToken || mfaSetupUri) return;
-    const params = new URLSearchParams();
-    if (filterServer && filterServer !== 'all') params.append('vs_id', filterServer);
-    if (filterStatus && filterStatus !== 'all') params.append('status_class', filterStatus);
-    if (searchTxt) params.append('search', searchTxt);
-    params.append('page', currentPage.toString());
-    params.append('limit', logsLimit.toString());
+    const params: Record<string, string> = {};
+    if (filterServer && filterServer !== 'all') params.vs_id = filterServer;
+    if (filterStatus && filterStatus !== 'all') params.status_class = filterStatus;
+    if (searchTxt) params.search = searchTxt;
+    params.page = currentPage.toString();
+    params.limit = logsLimit.toString();
     
-    fetchWithAuth('http://localhost:8555/api/logs?' + params.toString())
+    api.get('/api/logs', { params })
       .then(res => res.json())
       .then(data => { 
           if(data && Array.isArray(data.logs)) {
@@ -164,16 +156,18 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
+    if (!authToken) return;
     fetchServers();
     const interval = setInterval(fetchServers, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [authToken]);
 
   useEffect(() => {
+    if (!authToken) return;
     fetchLogs();
     const interval = setInterval(fetchLogs, 5000);
     return () => clearInterval(interval);
-  }, [filterServer, filterStatus, searchTxt, currentPage, logsLimit]);
+  }, [authToken, filterServer, filterStatus, searchTxt, currentPage, logsLimit]);
 
   const handleFilterChange = (setter: any) => (e: any) => {
       setter(e.target.value);
@@ -185,9 +179,7 @@ const App: React.FC = () => {
   const handleDeploySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await fetchWithAuth('http://localhost:8555/api/virtual-servers/', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newServer),
-      });
+      await api.post('/api/virtual-servers/', newServer);
       fetchData();
       setIsDeployModalOpen(false);
     } catch (e) {
@@ -196,7 +188,7 @@ const App: React.FC = () => {
   };
 
   const handleDelete = async (id: string) => {
-    await fetchWithAuth('http://localhost:8555/api/virtual-servers/' + id, { method: 'DELETE' });
+    await api.delete('/api/virtual-servers/' + id);
     fetchData();
   };
 
@@ -217,9 +209,7 @@ const App: React.FC = () => {
     const apiPayload = { ...updated, profiles: profileStrings };
 
     try {
-      const res = await fetchWithAuth('http://localhost:8555/api/virtual-servers/' + server.id, {
-        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(apiPayload),
-      });
+      const res = await api.put('/api/virtual-servers/' + server.id, apiPayload);
       
       if (!res.ok) {
           console.error("API Update Failed", await res.text());
@@ -240,10 +230,7 @@ const App: React.FC = () => {
     if(!srv) return;
     
     try {
-      await fetchWithAuth(`http://localhost:8555/api/exclusions?vs_id=${srv.id}`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, 
-        body: JSON.stringify({ path_pattern: log.path, rule_type: 'ALL' }),
-      });
+      await api.post(`/api/exclusions?vs_id=${srv.id}`, { path_pattern: log.path, rule_type: 'ALL' });
       fetchData();
     } catch(e) {
       console.error(e);
@@ -252,7 +239,7 @@ const App: React.FC = () => {
 
   const deleteExclusion = async (excId: string) => {
     try {
-      await fetchWithAuth(`http://localhost:8555/api/exclusions/${excId}`, { method: 'DELETE' });
+      await api.delete(`/api/exclusions/${excId}`);
       fetchData();
       if (activeServer) {
         setActiveServer({
@@ -268,20 +255,17 @@ const App: React.FC = () => {
   const addHeader = async () => {
     if (!activeServer || !newHeader.header_key) return;
     try {
-      await fetchWithAuth(`http://localhost:8555/api/headers?vs_id=${activeServer.id}`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newHeader),
-      });
+      await api.post(`/api/headers?vs_id=${activeServer.id}`, newHeader);
       setNewHeader({ direction: 'Response', header_key: '', header_value: '' });
       fetchData();
-      const res = await fetchWithAuth(`http://localhost:8555/api/virtual-servers/${activeServer.id}`);
+      const res = await api.get(`/api/virtual-servers/${activeServer.id}`);
       setActiveServer(await res.json());
     } catch(e) { console.error(e); }
   };
 
   const deleteHeader = async (hdrId: string) => {
     try {
-      await fetchWithAuth(`http://localhost:8555/api/headers/${hdrId}`, { method: 'DELETE' });
+      await api.delete(`/api/headers/${hdrId}`);
       fetchData();
       if (activeServer) {
         setActiveServer({
@@ -295,10 +279,7 @@ const App: React.FC = () => {
   const handleChangeOwnPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetchWithAuth('http://localhost:8555/api/users/me/password', {
-        method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: myNewPassword })
-      });
+      const res = await api.put('/api/users/me/password', { password: myNewPassword });
       if (!res.ok) {
          const err = await res.json();
          throw new Error(err.detail || "Failed to change password");
@@ -841,6 +822,44 @@ const App: React.FC = () => {
                                onChange={(e) => updateServerSettings(activeServer, { rate_limit_rpm: parseInt(e.target.value) })}
                                className="w-1/3 bg-slate-900 border border-slate-700 text-white p-3 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 transition" />
                             <span className="text-slate-400 text-sm">Requests per 60 seconds per individual remote IP address.</span>
+                        </div>
+                    </div>
+
+                    <div className="border-t border-slate-700 pt-6 mt-4">
+                        <div className="flex justify-between items-center mb-4">
+                           <div>
+                              <h3 className="text-xl font-bold text-white flex items-center">
+                                 <ShieldAlert className="w-6 h-6 mr-2 text-red-400" /> Applicative Attack Mitigation
+                              </h3>
+                              <p className="text-slate-400 text-sm mt-1">Automatically block remote IP addresses that repeatedly trigger WAF violations (like SQLi, XSS) on this virtual server.</p>
+                           </div>
+                           <button onClick={() => {
+                               const isEnabled = activeServer.attack_mitigation_enabled || false;
+                               updateServerSettings(activeServer, { attack_mitigation_enabled: !isEnabled });
+                           }} className={`w-14 h-7 rounded-full transition-colors relative flex-shrink-0 ${activeServer.attack_mitigation_enabled ? 'bg-red-500' : 'bg-slate-600'}`}>
+                              <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all shadow-md ${activeServer.attack_mitigation_enabled ? 'left-8' : 'left-1'}`}></div>
+                           </button>
+                        </div>
+                        
+                        <div className={`grid grid-cols-2 gap-6 transition-opacity ${activeServer.attack_mitigation_enabled ? 'opacity-100' : 'opacity-50 pointer-events-none'}`}>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-300 mb-2">Attack Blacklist Threshold</label>
+                                <div className="flex items-center space-x-4">
+                                    <input type="number" min="1" max="10000" value={activeServer.attack_threshold !== undefined ? activeServer.attack_threshold : 5}
+                                       onChange={(e) => updateServerSettings(activeServer, { attack_threshold: parseInt(e.target.value) })}
+                                       className="w-1/2 bg-slate-900 border border-slate-700 text-white p-3 rounded-lg outline-none focus:ring-2 focus:ring-red-500 transition" />
+                                    <span className="text-slate-400 text-sm">Violations in 5 mins.</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-300 mb-2">Attack Blacklist TTL</label>
+                                <div className="flex items-center space-x-4">
+                                    <input type="number" min="1" max="14400" value={activeServer.attack_ttl_minutes !== undefined ? activeServer.attack_ttl_minutes : 60}
+                                       onChange={(e) => updateServerSettings(activeServer, { attack_ttl_minutes: parseInt(e.target.value) })}
+                                       className="w-1/2 bg-slate-900 border border-slate-700 text-white p-3 rounded-lg outline-none focus:ring-2 focus:ring-red-500 transition" />
+                                    <span className="text-slate-400 text-sm">Minutes to block IP.</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                  </div>
