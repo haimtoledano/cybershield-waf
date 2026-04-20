@@ -5,7 +5,7 @@ from sqlalchemy import text
 def update_password():
     session = database.SessionLocal()
     try:
-        new_hash = auth.get_password_hash('123qweASDF')
+        new_hash = auth.get_password_hash('ChangeMeNow123!')
         session.execute(text("UPDATE users SET hashed_password = :hp WHERE username = 'superadmin'"), {'hp': new_hash})
         session.commit()
         print("Password updated successfully")

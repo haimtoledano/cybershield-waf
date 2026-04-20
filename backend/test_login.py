@@ -2,7 +2,7 @@ import urllib.request
 import urllib.error
 import json
 
-data = json.dumps({'username':'superadmin', 'password':'123qweASDF'}).encode('utf-8')
+data = json.dumps({'username':'superadmin', 'password':'ChangeMeNow123!'}).encode('utf-8')
 req = urllib.request.Request('http://localhost:8000/api/auth/login', data=data, headers={'Content-Type':'application/json'})
 try:
     res = urllib.request.urlopen(req)

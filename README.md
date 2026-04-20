@@ -79,7 +79,7 @@ docker compose up --build -d
 ### 3. Default Credentials
 - **URL**: `http://localhost:5173`
 - **Username**: `superadmin`
-- **Password**: `123qweASDF` 
+- **Password**: `ChangeMeNow123!` 
 
 ## 🛡 Security Policy
 LuminaWAF is designed for security-first environments. All default secrets (MFA Issuers, API Keys) should be rotated in production environments via environment variables.

@@ -30,7 +30,7 @@ def startup_event():
         if session.query(database.User).count() == 0:
             superadmin = database.User(
                 username='superadmin',
-                hashed_password=auth.get_password_hash('123qweASDF'),
+                hashed_password=auth.get_password_hash('ChangeMeNow123!'),
                 role=database.UserRole.admin,
                 mfa_enabled=False
             )
