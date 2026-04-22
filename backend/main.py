@@ -72,6 +72,16 @@ def generate_cds(servers):
                 }}}}]}]
             }
         }
+        
+        if parsed.scheme == 'https':
+            cluster["transport_socket"] = {
+                "name": "envoy.transport_sockets.tls",
+                "typed_config": {
+                    "@type": "type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext",
+                    "sni": host
+                }
+            }
+            
         cds["resources"].append(cluster)
     return yaml.dump(cds, sort_keys=False)
 
@@ -143,7 +153,7 @@ def generate_lds(servers, blacklisted_ips=None, whitelisted_ips=None):
                             "name": "envoy.access_loggers.file",
                             "typed_config": {
                                 "@type": "type.googleapis.com/envoy.extensions.access_loggers.file.v3.FileAccessLog",
-                                "path": "/etc/envoy/dynamic/access.log",
+                                "path": "/dev/stdout",
                                 "log_format": {
                                     "json_format": {
                                         "time": "%START_TIME%",
