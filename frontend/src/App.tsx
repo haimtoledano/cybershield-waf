@@ -182,7 +182,14 @@ const App: React.FC = () => {
     e.preventDefault();
     try {
       if (newServer.id) {
-         await api.put('/api/virtual-servers/' + newServer.id, newServer);
+         const updatePayload = {
+            name: newServer.name,
+            ingress_port: newServer.ingress_port,
+            backend_target: newServer.backend_target,
+            log_retention_days: newServer.log_retention_days,
+            profiles: newServer.profiles ? newServer.profiles.map((p: any) => typeof p === 'string' ? p : p.profile_name) : []
+         };
+         await api.put('/api/virtual-servers/' + newServer.id, updatePayload);
       } else {
          await api.post('/api/virtual-servers/', newServer);
       }
