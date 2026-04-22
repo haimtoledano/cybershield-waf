@@ -133,7 +133,7 @@ def generate_lds(servers, blacklisted_ips=None, whitelisted_ips=None, custom_blo
                             "virtual_hosts": [vhost]
                         },
                         "use_remote_address": True,
-                        "xff_num_trusted_hops": 1,
+                        "xff_num_trusted_hops": 2,
                         "forward_client_cert_details": "SANITIZE_SET",
                         "local_reply_config": {
                             "mappers": [
@@ -189,7 +189,7 @@ def generate_lds(servers, blacklisted_ips=None, whitelisted_ips=None, custom_blo
         rbac_policies = {}
         
         if blacklisted_ips:
-            principals = [{"direct_remote_ip": {"address_prefix": ip, "prefix_len": 32}} for ip in blacklisted_ips]
+            principals = [{"remote_ip": {"address_prefix": ip, "prefix_len": 32}} for ip in blacklisted_ips]
             rbac_policies["global_blacklist"] = {
                 "permissions": [{"any": True}],
                 "principals": principals
@@ -201,7 +201,7 @@ def generate_lds(servers, blacklisted_ips=None, whitelisted_ips=None, custom_blo
                 
             principals = [{"any": True}]
             if block.ip_address:
-                principals = [{"direct_remote_ip": {"address_prefix": block.ip_address, "prefix_len": 32}}]
+                principals = [{"remote_ip": {"address_prefix": block.ip_address, "prefix_len": 32}}]
                 
             permissions = [{"any": True}]
             if block.path_pattern:

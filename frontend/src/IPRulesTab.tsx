@@ -10,12 +10,22 @@ interface IPRule {
   created_at: string;
 }
 
+interface CustomBlock {
+  id: string;
+  vs_id: string | null;
+  ip_address: string | null;
+  path_pattern: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
 interface Props {
   authToken: string;
 }
 
 const IPRulesTab: React.FC<Props> = ({ authToken }) => {
   const [rules, setRules] = useState<IPRule[]>([]);
+  const [customBlocks, setCustomBlocks] = useState<CustomBlock[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -31,6 +41,12 @@ const IPRulesTab: React.FC<Props> = ({ authToken }) => {
       if (!response.ok) throw new Error('Failed to fetch IP RULES');
       const data = await response.json();
       setRules(data);
+      
+      const cbResp = await api.get('/api/custom-blocks/');
+      if (cbResp.ok) {
+        setCustomBlocks(await cbResp.json());
+      }
+      
       setError(null);
     } catch (err: any) {
       setError(err.message);
@@ -79,15 +95,27 @@ const IPRulesTab: React.FC<Props> = ({ authToken }) => {
     }
   };
 
+  const handleDeleteCustomBlock = async (id: string) => {
+    if (!window.confirm(`Are you sure you want to delete this custom block?`)) return;
+    try {
+      const response = await api.delete(`/api/custom-blocks/${id}`);
+      if (!response.ok) throw new Error('Delete failed');
+      fetchRules();
+      setMessage({ text: `Custom block deleted successfully.`, type: 'success' });
+    } catch (err: any) {
+      setMessage({ text: err.message, type: 'error' });
+    }
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0">
         <div>
           <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-indigo-300 flex items-center">
             <ShieldAlert className="w-8 h-8 mr-3 text-red-500" />
-            Global IP Rules
+            Global Rules & Blocks
           </h1>
-          <p className="text-slate-400 max-w-2xl mt-2">Manage malicious actors (Blacklist) or allowed integrators (Whitelist). Blacklists enforce global 403 blocks instantly, Whitelists bypass Threat Intelligence inspections.</p>
+          <p className="text-slate-400 max-w-2xl mt-2">Manage malicious actors (Blacklist) or allowed integrators (Whitelist), and manage your quick-blocks.</p>
         </div>
       </div>
 
@@ -190,6 +218,46 @@ const IPRulesTab: React.FC<Props> = ({ authToken }) => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
                         <button onClick={() => handleDeleteRule(rule.id, rule.ip_address)} className="text-red-400 hover:text-white transition bg-red-900/20 hover:bg-red-900/60 p-2 rounded-lg">
+                          <Trash2 className="w-5 h-5 inline" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <div>
+        <h2 className="text-2xl font-bold mb-4">Active Custom Blocks</h2>
+        {!isLoading && !error && (
+          <div className="overflow-x-auto border border-slate-700/60 rounded-xl shadow-lg bg-[#1e2333]/50">
+            <table className="min-w-full divide-y divide-slate-700/60">
+              <thead className="bg-slate-900/60">
+                <tr>
+                  <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Target IP</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Target URL Path</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Virtual Server</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Notes</th>
+                  <th className="px-6 py-4 text-right text-xs font-semibold uppercase tracking-wider text-slate-400">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-700/50">
+                {customBlocks.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-8 text-center text-slate-500 italic">No custom blocks defined. Use the Live Traffic logs to block attackers.</td>
+                  </tr>
+                ) : (
+                  customBlocks.map((block) => (
+                    <tr key={block.id} className="hover:bg-slate-700/30 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-bold font-mono text-indigo-300">{block.ip_address || 'ANY'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-yellow-300 font-mono">{block.path_pattern || 'ANY'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-400">{block.vs_id ? 'Specific VS' : 'Global'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{block.notes || '-'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
+                        <button onClick={() => handleDeleteCustomBlock(block.id)} className="text-red-400 hover:text-white transition bg-red-900/20 hover:bg-red-900/60 p-2 rounded-lg">
                           <Trash2 className="w-5 h-5 inline" />
                         </button>
                       </td>
