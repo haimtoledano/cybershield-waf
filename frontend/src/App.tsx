@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Server, Activity, PlusCircle, X, Trash2, Shield, ShieldCheck, Terminal, ShieldAlert, ChevronDown, ChevronUp, AlertOctagon, LayoutTemplate, Cloud, Code, User, Users, Database, LogOut, Settings, ClipboardList, LayoutDashboard, Download } from 'lucide-react';
+import { Server, Activity, PlusCircle, X, Trash2, Shield, ShieldCheck, Terminal, ShieldAlert, ChevronDown, ChevronUp, AlertOctagon, LayoutTemplate, Cloud, Code, User, Users, Database, LogOut, Settings, ClipboardList, LayoutDashboard, Download, Edit } from 'lucide-react';
 import { LoginView, MFASetupView } from './AuthViews';
 import UsersTab from './UsersTab';
 import IPRulesTab from './IPRulesTab';
@@ -68,7 +68,7 @@ const App: React.FC = () => {
     api.setOnAuthError(handleLogout);
   }, [authToken]);
 
-  const [newServer, setNewServer] = useState({
+  const [newServer, setNewServer] = useState<any>({
     name: '', ingress_port: 0, backend_target: '', waf_mode: 'Disabled', log_retention_days: 7, profiles: []
   });
   const [activeSettingsTab, setActiveSettingsTab] = useState<'rules' | 'apps' | 'exclusions' | 'headers' | 'ddos'>('rules');
@@ -181,7 +181,11 @@ const App: React.FC = () => {
   const handleDeploySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await api.post('/api/virtual-servers/', newServer);
+      if (newServer.id) {
+         await api.put('/api/virtual-servers/' + newServer.id, newServer);
+      } else {
+         await api.post('/api/virtual-servers/', newServer);
+      }
       fetchData();
       setIsDeployModalOpen(false);
     } catch (e) {
@@ -388,7 +392,10 @@ const App: React.FC = () => {
           <div>
             <div className="flex justify-end mb-4">
               {currentUser?.role === 'admin' && (
-                  <button onClick={() => setIsDeployModalOpen(true)} className="flex items-center bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-full transition-all shadow-[0_0_15px_rgba(79,70,229,0.5)]">
+                  <button onClick={() => {
+                        setNewServer({ name: '', ingress_port: 0, backend_target: '', waf_mode: 'Disabled', log_retention_days: 7, profiles: [] });
+                        setIsDeployModalOpen(true);
+                      }} className="flex items-center bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-full transition-all shadow-[0_0_15px_rgba(79,70,229,0.5)]">
                     <PlusCircle className="w-5 h-5 mr-2" /> Add Virtual Server
                   </button>
               )}
@@ -403,6 +410,8 @@ const App: React.FC = () => {
                       <div className={`p-4 rounded-xl mr-5 ${vs.active ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
                         <Server className="w-8 h-8 " />
                       </div>
+                      <div>
+                        <h3 className="text-xl font-bold text-white tracking-wide">{vs.name}</h3>
                         <div className="flex space-x-4 mt-2 text-sm text-slate-400">
                           <span className="flex items-center"><Activity className="w-4 h-4 mr-1 text-blue-400"/> Port {vs.ingress_port}</span>
                           <span className={vs.is_online ? "" : "text-red-500 font-bold flex items-center"}>
@@ -410,6 +419,7 @@ const App: React.FC = () => {
                             {!vs.is_online && <AlertOctagon className="w-4 h-4 ml-2 animate-pulse" />}
                           </span>
                         </div>
+                      </div>
                     </div>
                     <div className="flex flex-col items-end">
                       <div className="flex space-x-2">
@@ -431,6 +441,14 @@ const App: React.FC = () => {
                         <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${vs.waf_mode === 'Blocking' ? 'bg-red-900/50 text-red-300' : vs.waf_mode === 'Logging' ? 'bg-yellow-900/50 text-yellow-300' : 'bg-slate-700/50 text-slate-300'}`}>
                           {vs.waf_mode}
                         </span>
+                        {currentUser?.role === 'admin' && (
+                            <button onClick={() => {
+                               setNewServer({...vs});
+                               setIsDeployModalOpen(true);
+                            }} className="text-slate-500 hover:text-indigo-400 p-1 rounded transition" title="Edit Server Configuration">
+                               <Edit className="w-4 h-4" />
+                            </button>
+                        )}
                         {currentUser?.role === 'admin' && (
                             <button onClick={() => handleDelete(vs.id)} className="text-slate-500 hover:text-red-400 p-1 rounded">
                               <Trash2 className="w-4 h-4" />
@@ -597,7 +615,7 @@ const App: React.FC = () => {
               <X className="w-6 h-6" />
             </button>
             <h2 className="text-2xl font-semibold mb-6 text-white flex items-center">
-              <PlusCircle className="mr-2"/> Add Virtual Server
+              {newServer.id ? <Edit className="mr-2"/> : <PlusCircle className="mr-2"/>} {newServer.id ? 'Edit Virtual Server' : 'Add Virtual Server'}
             </h2>
             <form onSubmit={handleDeploySubmit} className="space-y-4">
               <div>
@@ -619,7 +637,7 @@ const App: React.FC = () => {
                 <input type="text" name="backend_target" value={newServer.backend_target} onChange={(e) => setNewServer({...newServer, backend_target: e.target.value})} required className="w-full bg-slate-800 text-white p-3 rounded-lg outline-none focus:ring-2 ring-indigo-500 border border-slate-700" placeholder="e.g. 10.0.1.50:80" />
               </div>
               <button type="submit" className="w-full bg-indigo-600 font-semibold text-white p-3 mt-4 rounded-lg hover:bg-indigo-500 transition shadow-[0_0_15px_rgba(79,70,229,0.4)]">
-                Create & Deploy
+                {newServer.id ? 'Save Changes' : 'Create & Deploy'}
               </button>
             </form>
           </div>
