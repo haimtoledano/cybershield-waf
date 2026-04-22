@@ -153,7 +153,7 @@ def generate_lds(servers, blacklisted_ips=None, whitelisted_ips=None):
                             "name": "envoy.access_loggers.file",
                             "typed_config": {
                                 "@type": "type.googleapis.com/envoy.extensions.access_loggers.file.v3.FileAccessLog",
-                                "path": "/dev/stdout",
+                                "path": "/etc/envoy/dynamic/access.log",
                                 "log_format": {
                                     "json_format": {
                                         "time": "%START_TIME%",
