@@ -47,12 +47,7 @@ def create_custom_block(rule_data: CustomBlockCreate, db: Session = Depends(get_
     db.commit()
     db.refresh(new_rule)
     
-    # Trigger an Envoy configuration update
-    try:
-        requests.post("http://127.0.0.1:8000/api/internal/trigger-update", timeout=1)
-    except:
-        pass
-        
+    # Rely on the 10-second health check loop automatically picking up state changes in IPRules and CustomBlocks
     return new_rule
 
 @custom_blocks_router.delete("/{rule_id}", summary="Delete a custom block")
@@ -64,10 +59,4 @@ def delete_custom_block(rule_id: str, db: Session = Depends(get_db), current_adm
     db.delete(rule)
     db.commit()
     
-    # Trigger an Envoy configuration update
-    try:
-        requests.post("http://127.0.0.1:8000/api/internal/trigger-update", timeout=1)
-    except:
-        pass
-        
     return {"status": "deleted"}
